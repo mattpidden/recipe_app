@@ -73,6 +73,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
+  equatable:
+    dependency: transitive
+    description:
+      name: equatable
+      sha256: "3e0141505477fd8ad55d6eb4e7776d3fe8430be8e497ccb1521370c3f21a3e2b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.8"
   fake_async:
     dependency: transitive
     description:
@@ -288,6 +296,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.5+1"
+  purchases_flutter:
+    dependency: "direct main"
+    description:
+      name: purchases_flutter
+      sha256: "1a7132bac772d90e9b959364369beddfc7fca8a3d2909d6e4d818cef7fd64a8f"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.10.6"
+  purchases_ui_flutter:
+    dependency: "direct main"
+    description:
+      name: purchases_ui_flutter
+      sha256: "350550b6fe8cf91a8de9e613ed38829fcdd5e098f0ae1ae25d5b2d45c680c842"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.10.6"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -375,4 +399,4 @@ packages:
     version: "1.1.1"
 sdks:
   dart: ">=3.9.2 <4.0.0"
-  flutter: ">=3.22.0"
+  flutter: ">=3.27.0"

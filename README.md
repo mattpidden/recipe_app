@@ -1,11 +1,14 @@
-# Recipe App (needs name)
+# Made: Recipes become meals
 
 ## About
 - A mobile app built for the RevenueCat Shipyard Hackathon, following the creator brief of Eitan Bernath.
 
 - **Problem Statement** People save recipes endlessly but struggle to decide what to cook and rarely follow through.
 
-- **Core Idea:**  NAME helps users collect recipes from the internet and physical cookbooks, plan meals, and cook with confidence using a low friction flow designed to reduce decision fatigue and increase follow through.
+- **Core Idea:**  MADE helps users collect recipes from the internet and physical cookbooks, plan meals, and cook with confidence using a low friction flow designed to reduce decision fatigue and increase follow through.
+
+## Links
+- [TestFlight Public Link](https://testflight.apple.com/join/zAdEaHde)
 
 ## Tech
 - Flutter (iOS & Android)

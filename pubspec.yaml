@@ -15,6 +15,8 @@ dependencies:
     sdk: flutter
   google_nav_bar: ^5.0.7
   provider: ^6.1.5+1
+  purchases_flutter: ^9.10.6
+  purchases_ui_flutter: ^9.10.6
 
 dev_dependencies:
   flutter_test:
@@ -23,5 +25,32 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Antique
+      fonts:
+        - asset: assets/antique/antiqueregular.otf
+    - family: YoungSerif
+      fonts:
+        - asset: assets/youngserif/YoungSerif-Light.otf
+          weight: 100
+        - asset: assets/youngserif/YoungSerif-LightItalic.otf
+          weight: 100
+          style: italic
+        - asset: assets/youngserif/YoungSerif-Regular.otf
+          weight: 300
+        - asset: assets/youngserif/YoungSerif-RegularItalic.otf
+          weight: 300
+          style: italic
+        - asset: assets/youngserif/YoungSerif-Medium.otf
+          weight: 500
+        - asset: assets/youngserif/YoungSerif-MediumItalic.otf
+          weight: 500
+          style: italic
+        - asset: assets/youngserif/YoungSerif-Bold.otf
+          weight: 700
+        - asset: assets/youngserif/YoungSerif-BoldItalic.otf
+          weight: 700
+          style: italic
+
   assets:
     - assets/logo.png

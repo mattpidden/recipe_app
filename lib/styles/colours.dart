@@ -1,15 +1,14 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const primaryColour = Color(0xFF1C2B46);
-  static const accentColour1 = Color(0xFFE5303F);
-  static const accentColour2 = Color(0xFF12C2C9);
-  static const backgroundColour = Color.fromARGB(255, 243, 241, 240);
+  static const primaryColour = Color(0xFF2e543a);
+  static const accentColour1 = Color(0xFF344982);
+  static const accentColour2 = Color(0xFFC8E3F7);
+  static const backgroundColour = Color.fromARGB(255, 242, 244, 242);
 
-  static const primaryTextColour = Color(0xFF1C2B46);
-  static const secondaryTextColour = Color(0xFFEBE9EC);
+  static const primaryTextColour = Color.fromARGB(255, 14, 26, 12);
+  static const secondaryTextColour = Color.fromARGB(255, 227, 243, 255);
 
   static const successColor = Color.fromARGB(255, 63, 139, 66);
   static const warningColor = Color.fromARGB(255, 250, 196, 49);
