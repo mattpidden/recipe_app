@@ -1,6 +1,16 @@
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:recipe_app/firebase_options.dart';
+import 'package:recipe_app/main_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  analytics.logAppOpen();
+
   runApp(const MainApp());
 }
 
@@ -9,12 +19,10 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+    return MaterialApp(
+      title: "Recipe App",
+      debugShowCheckedModeBanner: false,
+      home: MainPage(),
     );
   }
 }
