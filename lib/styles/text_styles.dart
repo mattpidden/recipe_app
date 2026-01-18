@@ -191,4 +191,10 @@ class TextStyles {
     fontWeight: FontWeight.w700,
     color: AppColors.secondaryTextColour,
   );
+
+  static const inputText = TextStyle(color: Colors.grey, fontSize: 14);
+  static const inputTextSecondary = TextStyle(
+    color: Colors.white,
+    fontSize: 14,
+  );
 }

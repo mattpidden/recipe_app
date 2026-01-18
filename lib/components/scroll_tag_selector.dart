@@ -59,11 +59,8 @@ class _ScrollTagSelectorState extends State<ScrollTagSelector> {
                   Icon(
                     tag.icon,
                     size: 18,
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.primaryTextColour,
+                    color: isSelected ? Colors.white : AppColors.primaryColour,
                   ),
-                  const SizedBox(height: 6),
                   Text(
                     tag.label,
                     overflow: TextOverflow.ellipsis,

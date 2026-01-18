@@ -39,7 +39,7 @@ class _MainPageState extends State<MainPage> {
   void initState() {
     super.initState();
     signInAnonymouslyIfNeeded();
-    presentPaywallIfNeeded();
+    // presentPaywallIfNeeded();
   }
 
   @override
@@ -62,7 +62,7 @@ class _MainPageState extends State<MainPage> {
                       horizontal: 20,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.white.withAlpha(245),
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(20),
                         topRight: Radius.circular(20),

@@ -47,5 +47,10 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Used to take photos of cookbooks, recipes and meals</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used to select photos of cookbooks, recipes and meals</string>
+
 </dict>
 </plist>
