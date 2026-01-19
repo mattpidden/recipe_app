@@ -13,13 +13,13 @@ class _AuthErrorPageState extends State<AuthErrorPage> {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: AppColors.backgroundColour,
+      backgroundColor: AppColors.primaryColour,
       body: SafeArea(
         child: Column(
           children: [
             const Text(
               "There was an error authenticating you",
-              style: TextStyles.hugeTitle,
+              style: TextStyles.hugeTitleSecondary,
               maxLines: 2,
             ),
           ],

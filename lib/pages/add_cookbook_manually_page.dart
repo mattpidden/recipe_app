@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -35,6 +38,7 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
   final _title = TextEditingController();
   final _author = TextEditingController();
   final _description = TextEditingController();
+  String? isbn;
 
   final _picker = ImagePicker();
   XFile? _pickedImage;
@@ -49,6 +53,185 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
     super.dispose();
   }
 
+  Future<void> _scanBarcode(ImageSource source) async {
+    if (_saving) return;
+
+    setState(() => _saving = true);
+
+    XFile? img;
+    BarcodeScanner? scanner;
+
+    try {
+      img = await _picker.pickImage(
+        source: source,
+        imageQuality: 90,
+        maxWidth: 1800,
+      );
+      if (img == null) return;
+
+      logPrint(String m) {
+        // ignore: avoid_print
+        print('[BARCODE] $m');
+      }
+
+      logPrint('Picked image: ${img.path}');
+
+      scanner = BarcodeScanner(
+        formats: [
+          BarcodeFormat.ean13,
+          BarcodeFormat.ean8,
+          BarcodeFormat.upca,
+          BarcodeFormat.upce,
+        ],
+      );
+      final input = InputImage.fromFilePath(img.path);
+      final barcodes = await scanner.processImage(input);
+
+      logPrint('Detected ${barcodes.length} barcodes');
+      for (final b in barcodes) {
+        logPrint(
+          ' - format=${b.format} raw="${b.rawValue}" display="${b.displayValue}"',
+        );
+      }
+
+      String? raw = barcodes
+          .map((b) => b.rawValue ?? b.displayValue)
+          .whereType<String>()
+          .map((s) => s.replaceAll(RegExp(r'[^0-9Xx]'), ''))
+          .firstWhere(
+            (s) => s.length == 13 || s.length == 10,
+            orElse: () => '',
+          );
+
+      if (raw.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No barcode found — try again with the barcode filling the frame',
+            ),
+          ),
+        );
+        return;
+      }
+
+      // Convert ISBN-10 -> ISBN-13 (Google Books works with both, but 13 is safer)
+      String isbn13 = raw;
+      if (raw.length == 10) {
+        // naive convert: prefix 978 + first 9 digits, recompute check digit
+        final core = '978${raw.substring(0, 9)}';
+        int sum = 0;
+        for (int i = 0; i < core.length; i++) {
+          final d = int.parse(core[i]);
+          sum += (i % 2 == 0) ? d : d * 3;
+        }
+        final check = (10 - (sum % 10)) % 10;
+        isbn13 = '$core$check';
+      }
+
+      logPrint('Using ISBN: $isbn13');
+
+      // --- Google Books lookup ---
+      // GET https://www.googleapis.com/books/v1/volumes?q=isbn:<isbn>
+      final uri = Uri.https('www.googleapis.com', '/books/v1/volumes', {
+        'q': 'isbn:$isbn13',
+        'projection': 'full',
+        'maxResults': '1',
+      });
+
+      logPrint('Request: $uri');
+
+      final res = await HttpClient().getUrl(uri).then((r) => r.close());
+      final body = await res.transform(const Utf8Decoder()).join();
+
+      logPrint('Google Books status: ${res.statusCode}');
+      // ignore: avoid_print
+      print('[BARCODE] Google Books body: $body');
+
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not look up this ISBN')),
+        );
+        return;
+      }
+
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      final items = (json['items'] as List?) ?? [];
+      if (items.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No book found for that barcode')),
+        );
+        return;
+      }
+
+      final volumeInfo =
+          (items.first as Map<String, dynamic>)['volumeInfo']
+              as Map<String, dynamic>? ??
+          {};
+      final title = (volumeInfo['title'] as String?)?.trim();
+      final authors =
+          (volumeInfo['authors'] as List?)?.whereType<String>().toList() ?? [];
+      final desc = (volumeInfo['subtitle'] as String?)?.trim();
+
+      // cover image
+      final imageLinks = volumeInfo['imageLinks'] as Map<String, dynamic>?;
+      String? cover =
+          (imageLinks?['extraLarge'] ??
+                  imageLinks?['large'] ??
+                  imageLinks?['thumbnail'] ??
+                  imageLinks?['smallThumbnail'])
+              as String?;
+
+      logPrint('Parsed title="$title" authors=$authors cover="$cover"');
+      logPrint('Parsed description length=${desc?.length ?? 0}');
+
+      isbn = isbn13;
+      if (title != null && _title.text.trim().isEmpty) _title.text = title;
+      if (authors.isNotEmpty && _author.text.trim().isEmpty)
+        _author.text = authors.join(', ');
+
+      if (desc != null && _description.text.trim().isEmpty) {
+        // "max 2 sentences"
+        final cleaned = desc
+            .replaceAll(RegExp(r'<[^>]+>'), ' ')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+        final parts = cleaned.split(RegExp(r'(?<=[.!?])\s+'));
+        _description.text = parts.take(2).join(' ').trim();
+      }
+
+      // If we got a cover URL, download it and set as picked image
+      if (cover != null) {
+        final coverUri = Uri.parse(cover);
+        final coverRes = await HttpClient()
+            .getUrl(coverUri)
+            .then((r) => r.close());
+        final bytes = await consolidateHttpClientResponseBytes(coverRes);
+
+        final tmpDir = await Directory.systemTemp.createTemp('cookbook_cover_');
+        final f = File('${tmpDir.path}/cover.jpg');
+        await f.writeAsBytes(bytes);
+
+        _pickedImage = XFile(f.path);
+        logPrint('Downloaded cover to: ${f.path}');
+      }
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      // ignore: avoid_print
+      print('[BARCODE] Error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to scan barcode')));
+    } finally {
+      await scanner?.close();
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     final img = await _picker.pickImage(
       source: source,
@@ -58,134 +241,6 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
     if (img == null) return;
 
     setState(() => _pickedImage = img);
-
-    // Try autofill from cover text
-    await _autoFillFromCover(img);
-  }
-
-  Future<void> _autoFillFromCover(XFile image) async {
-    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-
-    try {
-      final input = InputImage.fromFilePath(image.path);
-      final result = await recognizer.processImage(input);
-
-      // Flatten lines with a "size" score
-      final lines = <_OcrLine>[];
-      for (final block in result.blocks) {
-        for (final line in block.lines) {
-          final text = line.text.trim();
-          if (text.isEmpty) continue;
-
-          final bb = line.boundingBox;
-          final height = bb.height;
-          final width = bb.width;
-          final area = height * width;
-
-          lines.add(
-            _OcrLine(text: text, height: height, area: area, top: bb.top),
-          );
-        }
-      }
-
-      if (lines.isEmpty) return;
-
-      // Title: biggest text (by height/area), prefer lines near the top-ish
-      lines.sort((a, b) => b.area.compareTo(a.area));
-      final biggest = lines.take(8).toList();
-
-      // Pick best title candidate:
-      // - big
-      // - not super long sentence
-      // - not "by ..."
-      _OcrLine? titleLine;
-      for (final l in biggest) {
-        final lower = l.text.toLowerCase();
-        final words = l.text
-            .split(RegExp(r'\s+'))
-            .where((w) => w.isNotEmpty)
-            .length;
-        if (lower.startsWith('by ')) continue;
-        if (words > 10) continue;
-        titleLine = l;
-        break;
-      }
-      titleLine ??= biggest.first;
-
-      // Author: look for "by X" first
-      _OcrLine? authorLine;
-      for (final l in lines) {
-        final lower = l.text.toLowerCase();
-        if (lower.startsWith('by ') && l.text.length <= 40) {
-          authorLine = l;
-          break;
-        }
-      }
-
-      // If no "by", choose a smaller line near bottom, not same as title
-      if (authorLine == null) {
-        // Sort by vertical position (top -> bottom)
-        final byPos = [...lines]..sort((a, b) => a.top.compareTo(b.top));
-        final bottomChunk = byPos.skip((byPos.length * 0.6).floor()).toList();
-
-        // among bottom chunk, pick a line that isn't title and isn't too long
-        bottomChunk.sort(
-          (a, b) => a.height.compareTo(b.height),
-        ); // smaller first
-        for (final l in bottomChunk.reversed) {
-          if (l.text == titleLine!.text) continue;
-          final words = l.text
-              .split(RegExp(r'\s+'))
-              .where((w) => w.isNotEmpty)
-              .length;
-          if (words >= 2 && words <= 6 && l.text.length <= 35) {
-            authorLine = l;
-            break;
-          }
-        }
-      }
-
-      // Description: pick the longest "sentence-like" line (more words), excluding title/author
-      _OcrLine? descLine;
-      final excluded = <String>{
-        titleLine.text,
-        if (authorLine != null) authorLine.text,
-      };
-
-      final candidates = lines.where((l) => !excluded.contains(l.text)).where((
-        l,
-      ) {
-        final words = l.text
-            .split(RegExp(r'\s+'))
-            .where((w) => w.isNotEmpty)
-            .length;
-        return words >= 6; // looks sentence-ish
-      }).toList();
-
-      candidates.sort((a, b) => b.text.length.compareTo(a.text.length));
-      if (candidates.isNotEmpty) descLine = candidates.first;
-
-      // Apply suggestions ONLY if fields are empty (autocomplete vibe)
-      if (_title.text.trim().isEmpty) {
-        _title.text = titleLine.text;
-      }
-
-      if (authorLine != null && _author.text.trim().isEmpty) {
-        _author.text = authorLine.text
-            .replaceFirst(RegExp(r'^(?i)by\s+'), '')
-            .trim();
-      }
-
-      if (descLine != null && _description.text.trim().isEmpty) {
-        _description.text = descLine.text.trim();
-      }
-
-      setState(() {});
-    } catch (_) {
-      // If OCR fails, just do nothing (no drama)
-    } finally {
-      await recognizer.close();
-    }
   }
 
   Future<String?> _uploadCoverAndGetUrl(XFile file) async {
@@ -223,6 +278,7 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
             ? null
             : _description.text.trim(),
         coverImageUrl: coverUrl,
+        isbn: isbn,
       );
 
       if (!mounted) return;
@@ -246,6 +302,7 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
       ),
       builder: (_) {
         return SafeArea(
+          bottom: false,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -294,114 +351,172 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColour,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      Icons.arrow_back,
-                      color: AppColors.primaryTextColour,
+    return Consumer<Notifier>(
+      builder: (context, notifier, child) {
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColour,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Header row
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: AppColors.primaryTextColour,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Expanded(
-                    child: Text(
-                      'Add Cookbook',
-                      style: TextStyles.pageTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 4),
+                    const Expanded(
+                      child: Text(
+                        'Add Cookbook',
+                        style: TextStyles.pageTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Cover picker
-              GestureDetector(
-                onTap: _saving ? null : _showImageSheet,
-                child: Container(
-                  height: 160,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: _pickedImage == null
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.add_a_photo, color: Colors.grey),
-                            SizedBox(height: 8),
-                            Text(
-                              'Add cover photo',
-                              style: TextStyles.inputText,
+                  ],
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (isbn == null)
+                          GestureDetector(
+                            onTap: _saving
+                                ? null
+                                : () => _scanBarcode(ImageSource.camera),
+                            child: Container(
+                              height: 50,
+                              padding: EdgeInsets.all(8),
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: _saving
+                                    ? Colors.grey
+                                    : AppColors.accentColour1,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Scan cookbook barcode',
+                                  style: TextStyles.smallHeadingSecondary,
+                                ),
+                              ),
                             ),
-                          ],
-                        )
-                      : ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.file(
-                            File(_pickedImage!.path),
-                            fit: BoxFit.cover,
+                          ),
+
+                        if (isbn != null)
+                          Container(
                             width: double.infinity,
-                            height: double.infinity,
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentColour1,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                textAlign: TextAlign.center,
+                                notifier.partnerCodes.contains(isbn!)
+                                    ? "This cookbook is part of the 'Made Partner Group', so all recipes will be automatically uploaded with this cookbook!"
+                                    : "This cookbook is not part of the 'Made Partner Group', so we can't auto-add the recipes. Please reach out to your favourite cookbook authors and ask them to join the group.",
+                                style: TextStyles.smallHeadingSecondary,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        // Cover picker
+                        GestureDetector(
+                          onTap: _saving ? null : _showImageSheet,
+                          child: Container(
+                            height: 160,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: _pickedImage == null
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      Icon(
+                                        Icons.add_a_photo,
+                                        color: Colors.grey,
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Upload a cover photo',
+                                        style: TextStyles.inputText,
+                                      ),
+                                    ],
+                                  )
+                                : ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.file(
+                                      File(_pickedImage!.path),
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    ),
+                                  ),
                           ),
                         ),
-                ),
-              ),
 
-              const SizedBox(height: 16),
+                        const SizedBox(height: 8),
 
-              _Input(controller: _title, hint: 'Cookbook title'),
-              const SizedBox(height: 10),
-              _Input(controller: _author, hint: 'Author (optional)'),
-              const SizedBox(height: 10),
-              _Input(
-                controller: _description,
-                hint: 'Description (optional)',
-                maxLines: 3,
-              ),
+                        _Input(controller: _title, hint: 'Cookbook title'),
+                        const SizedBox(height: 8),
+                        _Input(controller: _author, hint: 'Author (optional)'),
+                        const SizedBox(height: 8),
+                        _Input(
+                          controller: _description,
+                          hint: 'Description (optional)',
+                          maxLines: 3,
+                        ),
 
-              const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-              // Save button
-              GestureDetector(
-                onTap: _saving ? null : _save,
-                child: Container(
-                  height: 50,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: _saving ? Colors.grey : AppColors.primaryColour,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: _saving
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(
-                            'Save Cookbook',
-                            style: TextStyles.smallHeadingSecondary,
+                        // Save button
+                        GestureDetector(
+                          onTap: _saving ? null : _save,
+                          child: Container(
+                            height: 50,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: _saving
+                                  ? Colors.grey
+                                  : AppColors.primaryColour,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: _saving
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Save Cookbook${notifier.partnerCodes.contains(isbn ?? "") ? " and Recipes" : ""}',
+                                      style: TextStyles.smallHeadingSecondary,
+                                    ),
+                            ),
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

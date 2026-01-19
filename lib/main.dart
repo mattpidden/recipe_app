@@ -1,10 +1,12 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/firebase_options.dart';
 import 'package:recipe_app/main_page.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
+import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/subscription/initalize.dart';
 
 void main() async {
@@ -12,6 +14,7 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseAnalytics analytics = FirebaseAnalytics.instance;
   analytics.logAppOpen();
+  await dotenv.load(fileName: ".env");
   //initializeRevenueCat();
   runApp(const MainApp());
 }
@@ -26,6 +29,28 @@ class MainApp extends StatelessWidget {
       child: MaterialApp(
         title: "Made",
         debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+
+          // Global brand colours
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: AppColors.primaryColour,
+            primary: AppColors.primaryColour,
+            secondary: AppColors.accentColour1,
+          ),
+
+          // Cursor + selection
+          textSelectionTheme: TextSelectionThemeData(
+            cursorColor: AppColors.primaryColour,
+            selectionColor: AppColors.primaryColour,
+            selectionHandleColor: AppColors.primaryColour,
+          ),
+
+          // Progress indicators
+          progressIndicatorTheme: ProgressIndicatorThemeData(
+            color: AppColors.primaryColour,
+          ),
+        ),
         home: const MainPage(),
       ),
     );

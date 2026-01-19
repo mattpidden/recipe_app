@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/components/recipe_card.dart';
-import 'package:recipe_app/components/scroll_tag_selector.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
-import 'package:recipe_app/pages/add_cookbook_manually_page.dart';
-import 'package:recipe_app/pages/add_recipe_manually_page.dart';
-import 'package:recipe_app/pages/cookbook_list_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
 class CookbookPage extends StatefulWidget {
-  const CookbookPage({super.key});
+  final String id;
+  const CookbookPage({super.key, required this.id});
 
   @override
   State<CookbookPage> createState() => _CookbookPageState();
@@ -21,299 +18,159 @@ class _CookbookPageState extends State<CookbookPage> {
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
+        final cookbook = notifier.cookbooks.firstWhere(
+          (c) => c.id == widget.id,
+        );
+
+        final recipes = notifier.recipes
+            .where((r) => (r.cookbookId ?? '') == widget.id)
+            .toList();
+
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
-          body: SingleChildScrollView(
-            child: SafeArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: const Text(
-                      "Cookbooks & Recipes",
-                      style: TextStyles.hugeTitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Container(
-                    height: 50,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: TextField(
-                        decoration: const InputDecoration(
-                          icon: Icon(
-                            Icons.search,
-                            color: Colors.grey,
-                            size: 20,
-                          ),
-                          hintText: 'Search',
-                          hintStyle: TextStyles.inputText,
-                          border: InputBorder.none,
-                          isDense: true,
-                        ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: AppColors.primaryTextColour,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  ScrollTagSelector(),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CookbookListPage(),
-                          ),
-                        );
-                      },
-                      child: Row(
-                        children: [
-                          Expanded(
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        cookbook.title,
+                        style: TextStyles.pageTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Cover card
+                            Container(
+                              width: 140,
+                              height: 180,
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(7),
+                                child: cookbook.coverImageUrl == null
+                                    ? const Center(
+                                        child: Icon(
+                                          Icons.menu_book,
+                                          color: AppColors.accentColour1,
+                                          size: 40,
+                                        ),
+                                      )
+                                    : Image.network(
+                                        cookbook.coverImageUrl!,
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Details card
+                            Expanded(
+                              child: Container(
+                                height: 180,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      cookbook.title,
+                                      style: TextStyles.smallHeading,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if ((cookbook.author ?? '')
+                                        .trim()
+                                        .isNotEmpty) ...[
+                                      Text(
+                                        cookbook.author!,
+                                        style: TextStyles.inputText,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                    if ((cookbook.description ?? '')
+                                        .trim()
+                                        .isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        cookbook.description!,
+                                        style: TextStyles.inputText,
+                                        maxLines: 6,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        Text('Recipes', style: TextStyles.pageTitle),
+
+                        if (recipes.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                             child: const Text(
-                              "Cookbooks",
-                              style: TextStyles.pageTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              'No recipes added for this cookbook yet.',
+                              style: TextStyles.inputText,
                             ),
                           ),
 
-                          if (notifier.cookbooks.length >= 3)
-                            const Text(
-                              "See All",
-                              style: TextStyles.bodyTextBold,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          if (notifier.cookbooks.length >= 3)
-                            const Icon(
-                              Icons.arrow_forward,
-                              color: AppColors.primaryTextColour,
-                              size: 15,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 225,
-                    child: notifier.cookbooks.isNotEmpty
-                        ? ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: notifier.cookbooks.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (context, index) {
-                              final cookbook = notifier.cookbooks[index];
-                              return InkWell(
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: () {},
+                        if (recipes.isNotEmpty)
+                          Column(
+                            children: recipes.map((r) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
                                 child: RecipeCard(
-                                  imageUrl: cookbook.coverImageUrl,
-                                  title: cookbook.title,
-                                  description: cookbook.author,
+                                  title: r.title,
+                                  description: r.description,
+                                  imageUrl: r.imageUrl,
                                 ),
                               );
-                            },
-                          )
-                        : GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const AddCookbookManuallyPage(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              width: 170,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryColour,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.add,
-                                      color: AppColors.secondaryTextColour,
-                                    ),
-                                    Text(
-                                      "Add Your First Cookbook",
-                                      style: TextStyles.smallHeadingSecondary,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                            }).toList(),
                           ),
-                  ),
-                  if (notifier.cookbooks.isNotEmpty) const SizedBox(height: 8),
-                  if (notifier.cookbooks.isNotEmpty)
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AddCookbookManuallyPage(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        height: 50,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColour,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: Text(
-                            "Add Cookbook",
-                            style: TextStyles.smallHeadingSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: const Text(
-                            "Recipes",
-                            style: TextStyles.pageTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (notifier.recipes.length >= 3)
-                          const Text(
-                            "See All",
-                            style: TextStyles.bodyTextBold,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        if (notifier.recipes.length >= 3)
-                          const Icon(
-                            Icons.arrow_forward,
-                            color: AppColors.primaryTextColour,
-                            size: 15,
-                          ),
+
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
-                  SizedBox(
-                    height: 245,
-                    child: notifier.recipes.isNotEmpty
-                        ? ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            itemCount: notifier.recipes.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 8),
-                            itemBuilder: (context, index) {
-                              final recipe = notifier.recipes[index];
-                              return InkWell(
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: () {},
-                                child: RecipeCard(
-                                  imageUrl: recipe.imageUrl,
-                                  title: recipe.title,
-                                  description: recipe.description,
-                                ),
-                              );
-                            },
-                          )
-                        : GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const AddRecipeManuallyPage(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              width: 170,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.accentColour1,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.note_add_outlined,
-                                      color: AppColors.secondaryTextColour,
-                                    ),
-                                    Text(
-                                      "Add Your First Recipe",
-                                      style: TextStyles.smallHeadingSecondary,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                  ),
-                  if (notifier.recipes.isNotEmpty) const SizedBox(height: 8),
-                  if (notifier.recipes.isNotEmpty)
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AddRecipeManuallyPage(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        height: 50,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        margin: const EdgeInsets.symmetric(horizontal: 16.0),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentColour1,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: Text(
-                            "Add Recipe",
-                            style: TextStyles.smallHeadingSecondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 58),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );

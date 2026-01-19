@@ -14,8 +14,11 @@ dependencies:
   firebase_storage: ^13.0.5
   flutter:
     sdk: flutter
+  flutter_dotenv: ^6.0.0
+  google_mlkit_barcode_scanning: ^0.14.1
   google_mlkit_text_recognition: ^0.15.0
   google_nav_bar: ^5.0.7
+  http: ^1.6.0
   image_picker: ^1.2.1
   provider: ^6.1.5+1
   purchases_flutter: ^9.10.6
@@ -56,4 +59,5 @@ flutter:
           style: italic
 
   assets:
+    - .env
     - assets/logo.png

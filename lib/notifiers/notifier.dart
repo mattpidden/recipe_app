@@ -11,6 +11,7 @@ class Notifier extends ChangeNotifier {
 
   List<Recipe> recipes = [];
   List<Cookbook> cookbooks = [];
+  List<String> partnerCodes = [];
 
   bool isLoading = false;
 
@@ -68,6 +69,7 @@ class Notifier extends ChangeNotifier {
     String? author,
     String? description,
     String? coverImageUrl,
+    String? isbn,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -84,6 +86,7 @@ class Notifier extends ChangeNotifier {
       author: author,
       description: description,
       coverImageUrl: coverImageUrl,
+      isbn: isbn,
     );
 
     await ref.set(cookbook.toFirestore());

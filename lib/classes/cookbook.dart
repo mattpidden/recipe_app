@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Cookbook {
   final String id;
+  final String? isbn;
 
   final String title;
   final String? author;
@@ -19,6 +20,7 @@ class Cookbook {
   const Cookbook({
     required this.id,
     required this.title,
+    this.isbn,
     this.author,
     this.description,
     this.coverImageUrl,
@@ -42,6 +44,7 @@ class Cookbook {
     return Cookbook(
       id: doc.id,
       title: data['title'] as String? ?? '',
+      isbn: data['isbn'] as String?,
       author: data['author'] as String?,
       description: data['description'] as String?,
       coverImageUrl: data['coverImageUrl'] as String?,
@@ -57,6 +60,7 @@ class Cookbook {
 
     return {
       'title': title,
+      if (isbn != null) 'isbn': isbn,
       if (author != null) 'author': author,
       if (description != null) 'description': description,
       if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
@@ -71,6 +75,7 @@ class Cookbook {
 
   Cookbook copyWith({
     String? title,
+    String? isbn,
     String? author,
     String? description,
     String? coverImageUrl,
@@ -81,6 +86,7 @@ class Cookbook {
     return Cookbook(
       id: id,
       title: title ?? this.title,
+      isbn: isbn ?? this.isbn,
       author: author ?? this.author,
       description: description ?? this.description,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
@@ -94,6 +100,7 @@ class Cookbook {
   factory Cookbook.create({
     required String id,
     required String title,
+    String? isbn,
     String? author,
     String? description,
     String? coverImageUrl,
@@ -101,6 +108,7 @@ class Cookbook {
     final now = DateTime.now();
     return Cookbook(
       id: id,
+      isbn: isbn,
       title: title,
       author: author,
       description: description,

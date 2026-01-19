@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:recipe_app/pages/auth_error_page.dart';
-import 'package:recipe_app/pages/cookbook_page.dart';
+import 'package:recipe_app/pages/cookbook_and_recipes_page.dart';
 import 'package:recipe_app/pages/home_page.dart';
 import 'package:recipe_app/pages/plan_page.dart';
 import 'package:recipe_app/pages/settings_page.dart';
@@ -19,7 +19,12 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 1;
 
-  final _pages = const [HomePage(), CookbookPage(), PlanPage(), SettingsPage()];
+  final _pages = const [
+    HomePage(),
+    CookbookAndRecipePage(),
+    PlanPage(),
+    SettingsPage(),
+  ];
 
   void presentPaywallIfNeeded() async {
     final paywallResult = await RevenueCatUI.presentPaywallIfNeeded("pro");
