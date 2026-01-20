@@ -7,6 +7,7 @@ import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/add_cookbook_manually_page.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
 import 'package:recipe_app/pages/cookbook_list_page.dart';
+import 'package:recipe_app/pages/recipes_list_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
@@ -209,30 +210,40 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                         const SizedBox(height: 16),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: const Text(
-                                  "Recipes",
-                                  style: TextStyles.pageTitle,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RecipesListPage(),
                                 ),
-                              ),
-                              if (notifier.recipes.length >= 3)
-                                const Text(
-                                  "See All",
-                                  style: TextStyles.bodyTextBold,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              );
+                            },
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: const Text(
+                                    "Recipes",
+                                    style: TextStyles.pageTitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              if (notifier.recipes.length >= 3)
-                                const Icon(
-                                  Icons.arrow_forward,
-                                  color: AppColors.primaryTextColour,
-                                  size: 15,
-                                ),
-                            ],
+                                if (notifier.recipes.length >= 3)
+                                  const Text(
+                                    "See All",
+                                    style: TextStyles.bodyTextBold,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                if (notifier.recipes.length >= 3)
+                                  const Icon(
+                                    Icons.arrow_forward,
+                                    color: AppColors.primaryTextColour,
+                                    size: 15,
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                         SizedBox(
@@ -252,7 +263,8 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                       borderRadius: BorderRadius.circular(10),
                                       onTap: () {},
                                       child: RecipeCard(
-                                        imageUrl: recipe.imageUrl,
+                                        id: recipe.id,
+                                        imageUrl: recipe.imageUrls.firstOrNull,
                                         title: recipe.title,
                                         description: recipe.description,
                                       ),

@@ -6,7 +6,7 @@ class Recipe {
 
   final String title;
   final String? description;
-  final String? imageUrl;
+  final List<String> imageUrls;
 
   final List<Ingredient> ingredients;
   final List<String> steps;
@@ -16,7 +16,8 @@ class Recipe {
   final int? servings;
 
   // Source
-  final String sourceType; // cookbook | url | tiktok | instagram | manual
+  final String
+  sourceType; // cookbook | url | tiktok | instagram | My Own Recipe
   final String? sourceUrl;
   final String? sourceAuthor;
   final String? sourceTitle;
@@ -39,13 +40,13 @@ class Recipe {
     required this.id,
     required this.title,
     this.description,
-    this.imageUrl,
+    this.imageUrls = const [],
     this.ingredients = const [],
     this.steps = const [],
     this.tags = const [],
     this.timeMinutes,
     this.servings,
-    this.sourceType = 'manual',
+    this.sourceType = 'My Own Recipe',
     this.sourceUrl,
     this.sourceAuthor,
     this.sourceTitle,
@@ -87,13 +88,13 @@ class Recipe {
       id: doc.id,
       title: data['title'] as String? ?? '',
       description: data['description'] as String?,
-      imageUrl: data['imageUrl'] as String?,
+      imageUrls: strList(data['imageUrls']),
       ingredients: ingredientList(data['ingredients']),
       steps: strList(data['steps']),
       tags: strList(data['tags']),
       timeMinutes: (data['timeMinutes'] as num?)?.toInt(),
       servings: (data['servings'] as num?)?.toInt(),
-      sourceType: data['sourceType'] as String? ?? 'manual',
+      sourceType: data['sourceType'] as String? ?? 'My Own Recipe',
       sourceUrl: data['sourceUrl'] as String?,
       sourceAuthor: data['sourceAuthor'] as String?,
       sourceTitle: data['sourceTitle'] as String?,
@@ -114,7 +115,7 @@ class Recipe {
     return {
       'title': title,
       if (description != null) 'description': description,
-      if (imageUrl != null) 'imageUrl': imageUrl,
+      'imageUrls': imageUrls,
       'ingredients': ingredients.map((i) => i.toMap()).toList(),
       'steps': steps,
       'tags': tags,
@@ -140,7 +141,7 @@ class Recipe {
   Recipe copyWith({
     String? title,
     String? description,
-    String? imageUrl,
+    List<String>? imageUrls,
     List<Ingredient>? ingredients,
     List<String>? steps,
     List<String>? tags,
@@ -162,7 +163,7 @@ class Recipe {
       id: id,
       title: title ?? this.title,
       description: description ?? this.description,
-      imageUrl: imageUrl ?? this.imageUrl,
+      imageUrls: imageUrls ?? this.imageUrls,
       ingredients: ingredients ?? this.ingredients,
       steps: steps ?? this.steps,
       tags: tags ?? this.tags,
@@ -186,19 +187,39 @@ class Recipe {
   factory Recipe.create({
     required String id,
     required String title,
+    String? description,
+    List<String> imageUrls = const [],
     List<Ingredient> ingredients = const [],
     List<String> steps = const [],
-    String sourceType = 'manual',
+    List<String> tags = const [],
+    int? timeMinutes,
+    int? servings,
+    String sourceType = 'My Own Recipe',
+    String? sourceUrl,
+    String? sourceAuthor,
+    String? sourceTitle,
     String? cookbookId,
+    int? pageNumber,
+    String? notes,
   }) {
     final now = DateTime.now();
     return Recipe(
       id: id,
       title: title,
+      description: description,
+      imageUrls: imageUrls,
       ingredients: ingredients,
       steps: steps,
+      tags: tags,
+      timeMinutes: timeMinutes,
+      servings: servings,
       sourceType: sourceType,
+      sourceUrl: sourceUrl,
+      sourceAuthor: sourceAuthor,
+      sourceTitle: sourceTitle,
       cookbookId: cookbookId,
+      pageNumber: pageNumber,
+      notes: notes,
       createdAt: now,
       updatedAt: now,
     );

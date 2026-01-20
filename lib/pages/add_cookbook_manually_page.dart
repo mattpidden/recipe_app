@@ -402,7 +402,7 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
                               ),
                               child: Center(
                                 child: Text(
-                                  'Scan cookbook barcode',
+                                  'Scan barcode to auto-add',
                                   style: TextStyles.smallHeadingSecondary,
                                 ),
                               ),
@@ -421,8 +421,8 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
                               child: Text(
                                 textAlign: TextAlign.center,
                                 notifier.partnerCodes.contains(isbn!)
-                                    ? "This cookbook is part of the 'Made Partner Group', so all recipes will be automatically uploaded with this cookbook!"
-                                    : "This cookbook is not part of the 'Made Partner Group', so we can't auto-add the recipes. Please reach out to your favourite cookbook authors and ask them to join the group.",
+                                    ? "This cookbook is part of the Made's Chef Collab, so all recipes will be automatically uploaded with this cookbook!"
+                                    : "The author of this cookbook has not signed up to join Made's Chef Collab. Please reach out to your favourite cookbook authors and ask them to join the group.",
                                 style: TextStyles.smallHeadingSecondary,
                               ),
                             ),

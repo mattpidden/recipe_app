@@ -60,23 +60,23 @@ class CookbookCard extends StatelessWidget {
 
             // Text content
             Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyles.smallHeading,
-                  ),
-                  Text(
-                    author ?? "-",
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyles.bodyTextPrimary,
-                  ),
-                ],
+              padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyles.smallHeading,
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8.0, 0, 8, 8),
+                child: Text(
+                  author ?? "-",
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyles.bodyTextPrimary,
+                ),
               ),
             ),
           ],
