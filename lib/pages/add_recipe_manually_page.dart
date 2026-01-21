@@ -622,7 +622,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                           const SizedBox(width: 8),
                                           Flexible(
                                             child: Text(
-                                              'Processing your recipe...',
+                                              'Processing... (this can take up to 1min)',
                                               style: TextStyles
                                                   .smallHeadingSecondary,
                                             ),
@@ -921,10 +921,10 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                     children: [
                                       Text(
                                         t,
-                                        style: TextStyles.inputText.copyWith(
+                                        style: TextStyles.inputedText.copyWith(
                                           color: showingTagOptions
                                               ? AppColors.backgroundColour
-                                              : Colors.grey,
+                                              : AppColors.primaryTextColour,
                                         ),
                                       ),
                                       const SizedBox(width: 6),
@@ -1000,7 +1000,8 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                           width: 18,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: AppColors.backgroundColour,
+                                            color:
+                                                AppColors.secondaryTextColour,
                                           ),
                                         )
                                       : Text(
@@ -1236,6 +1237,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                         width: 18,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
+                                          color: AppColors.secondaryTextColour,
                                         ),
                                       )
                                     : Text(
@@ -1297,7 +1299,14 @@ class _ParsedIngredientPill extends StatelessWidget {
                   ),
                 ),
               if (left.isNotEmpty) const SizedBox(width: 6),
-              Expanded(child: Text(item, style: TextStyles.inputedText)),
+              Expanded(
+                child: Text(
+                  item,
+                  style: TextStyles.inputedText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
           if (ingredient.notes != null && ingredient.notes!.trim().isNotEmpty)

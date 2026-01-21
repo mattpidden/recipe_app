@@ -201,18 +201,17 @@ class _RecipePageState extends State<RecipePage> {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  if ((recipe.description ?? '')
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
+
+                                  const SizedBox(height: 4),
+                                  Expanded(
+                                    child: Text(
                                       recipe.description!,
                                       style: TextStyles.inputText,
                                       maxLines: 5,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                  ],
-                                  const Spacer(),
+                                  ),
+
                                   Row(
                                     children: [
                                       if (recipe.timeMinutes != null)
@@ -234,7 +233,7 @@ class _RecipePageState extends State<RecipePage> {
                           ],
                         ),
 
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         // Extra images (if any) when cookbook exists, or if more than 1 image
 
                         // Tags
@@ -261,7 +260,7 @@ class _RecipePageState extends State<RecipePage> {
                           child: recipe.ingredients.isEmpty
                               ? const Text(
                                   'No ingredients yet.',
-                                  style: TextStyles.inputText,
+                                  style: TextStyles.inputedText,
                                 )
                               : Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,12 +273,12 @@ class _RecipePageState extends State<RecipePage> {
                                         children: [
                                           const Text(
                                             '•  ',
-                                            style: TextStyles.inputText,
+                                            style: TextStyles.inputedText,
                                           ),
                                           Expanded(
                                             child: Text.rich(
                                               TextSpan(
-                                                style: TextStyles.inputText,
+                                                style: TextStyles.inputedText,
                                                 children: [
                                                   if (ing.quantity != null)
                                                     TextSpan(
@@ -329,7 +328,7 @@ class _RecipePageState extends State<RecipePage> {
                           child: recipe.steps.isEmpty
                               ? const Text(
                                   'No steps yet.',
-                                  style: TextStyles.inputText,
+                                  style: TextStyles.inputedText,
                                 )
                               : Column(
                                   children: List.generate(recipe.steps.length, (
@@ -364,7 +363,7 @@ class _RecipePageState extends State<RecipePage> {
                                           Expanded(
                                             child: Text(
                                               step,
-                                              style: TextStyles.inputText,
+                                              style: TextStyles.inputedText,
                                             ),
                                           ),
                                         ],
@@ -389,7 +388,7 @@ class _RecipePageState extends State<RecipePage> {
                             ),
                             child: Text(
                               recipe.notes!,
-                              style: TextStyles.inputText,
+                              style: TextStyles.inputedText,
                             ),
                           ),
                           const SizedBox(height: 16),
@@ -555,7 +554,7 @@ class _TagChip extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(text, style: TextStyles.inputText),
+      child: Text(text, style: TextStyles.inputedText),
     );
   }
 }
@@ -573,8 +572,11 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 74, child: Text(label, style: TextStyles.inputText)),
-          Expanded(child: Text(value, style: TextStyles.inputText)),
+          SizedBox(
+            width: 74,
+            child: Text(label, style: TextStyles.inputedText),
+          ),
+          Expanded(child: Text(value, style: TextStyles.inputedText)),
         ],
       ),
     );

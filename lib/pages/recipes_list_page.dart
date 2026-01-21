@@ -155,7 +155,7 @@ class _RecipesListPageState extends State<RecipesListPage> {
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
                                   mainAxisExtent:
-                                      245, // tweak to match  proportions
+                                      250, // tweak to match  proportions
                                 ),
                             itemBuilder: (context, index) {
                               final recipe = filtered[index];
