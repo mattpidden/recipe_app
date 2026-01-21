@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:recipe_app/components/cookbook_card.dart';
+import 'package:recipe_app/classes/ingredient.dart';
+import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/components/recipe_card.dart';
 import 'package:recipe_app/components/scroll_tag_selector.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
-import 'package:recipe_app/pages/add_cookbook_manually_page.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
@@ -17,10 +17,43 @@ class RecipesListPage extends StatefulWidget {
 }
 
 class _RecipesListPageState extends State<RecipesListPage> {
+  final _searchCtrl = TextEditingController();
+  String _q = "";
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  bool _matches(Recipe r, String q) {
+    if (q.isEmpty) return true;
+    final qq = q.toLowerCase();
+
+    final title = (r.title ?? "").toLowerCase();
+    final desc = (r.description ?? "").toLowerCase();
+
+    final tags = (r.tags).join(" ").toLowerCase();
+
+    final ingredients = (r.ingredients)
+        .map((i) => i.raw)
+        .join(" ")
+        .toLowerCase();
+
+    return title.contains(qq) ||
+        desc.contains(qq) ||
+        tags.contains(qq) ||
+        ingredients.contains(qq);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
+        final filtered = notifier.recipes
+            .where((r) => _matches(r, _q))
+            .toList();
+
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
@@ -87,6 +120,9 @@ class _RecipesListPageState extends State<RecipesListPage> {
                   ),
                   child: Center(
                     child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: (v) => setState(() => _q = v.trim()),
+                      style: TextStyles.inputedText,
                       decoration: const InputDecoration(
                         icon: Icon(Icons.search, color: Colors.grey, size: 20),
                         hintText: 'Search',
@@ -111,17 +147,18 @@ class _RecipesListPageState extends State<RecipesListPage> {
                           child: GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: notifier.recipes.length,
+                            itemCount: filtered.length,
                             gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2, // number of columns
+                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 170,
+
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  childAspectRatio:
-                                      0.72, // tweak to match  proportions
+                                  mainAxisExtent:
+                                      245, // tweak to match  proportions
                                 ),
                             itemBuilder: (context, index) {
-                              final recipe = notifier.recipes[index];
+                              final recipe = filtered[index];
                               return InkWell(
                                 borderRadius: BorderRadius.circular(10),
                                 onTap: () {},

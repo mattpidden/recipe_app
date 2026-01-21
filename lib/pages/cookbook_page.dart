@@ -29,6 +29,7 @@ class _CookbookPageState extends State<CookbookPage> {
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
+            bottom: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -52,89 +53,6 @@ class _CookbookPageState extends State<CookbookPage> {
                     ),
                   ],
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Cover card
-                      Container(
-                        width: 140,
-                        height: 180,
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(7),
-                          child: cookbook.coverImageUrl == null
-                              ? const Center(
-                                  child: Icon(
-                                    Icons.menu_book,
-                                    color: AppColors.accentColour1,
-                                    size: 40,
-                                  ),
-                                )
-                              : Image.network(
-                                  cookbook.coverImageUrl!,
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Details card
-                      Expanded(
-                        child: Container(
-                          height: 180,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                cookbook.title,
-                                style: TextStyles.smallHeading,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if ((cookbook.author ?? '')
-                                  .trim()
-                                  .isNotEmpty) ...[
-                                Text(
-                                  cookbook.author!,
-                                  style: TextStyles.inputText,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                              if ((cookbook.description ?? '')
-                                  .trim()
-                                  .isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  cookbook.description!,
-                                  style: TextStyles.inputText,
-                                  maxLines: 6,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text('Recipes', style: TextStyles.pageTitle),
-                ),
 
                 Expanded(
                   child: SingleChildScrollView(
@@ -142,6 +60,84 @@ class _CookbookPageState extends State<CookbookPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Cover card
+                            Container(
+                              width: 140,
+                              height: 180,
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(7),
+                                child: cookbook.coverImageUrl == null
+                                    ? const Center(
+                                        child: Icon(
+                                          Icons.menu_book,
+                                          color: AppColors.accentColour1,
+                                          size: 40,
+                                        ),
+                                      )
+                                    : Image.network(
+                                        cookbook.coverImageUrl!,
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Details card
+                            Expanded(
+                              child: Container(
+                                height: 180,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      cookbook.title,
+                                      style: TextStyles.smallHeading,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if ((cookbook.author ?? '')
+                                        .trim()
+                                        .isNotEmpty) ...[
+                                      Text(
+                                        cookbook.author!,
+                                        style: TextStyles.inputText,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                    if ((cookbook.description ?? '')
+                                        .trim()
+                                        .isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        cookbook.description!,
+                                        style: TextStyles.inputText,
+                                        maxLines: 6,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text('Recipes', style: TextStyles.pageTitle),
+
                         if (recipes.isEmpty)
                           Container(
                             width: double.infinity,
@@ -162,12 +158,13 @@ class _CookbookPageState extends State<CookbookPage> {
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: recipes.length,
                             gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2, // number of columns
+                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 170,
+
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  childAspectRatio:
-                                      0.72, // tweak to match  proportions
+                                  mainAxisExtent:
+                                      245, // tweak to match  proportions
                                 ),
                             itemBuilder: (context, index) {
                               final recipe = recipes[index];
@@ -183,8 +180,29 @@ class _CookbookPageState extends State<CookbookPage> {
                               );
                             },
                           ),
+                        // const SizedBox(height: 8),
+                        // GestureDetector(
+                        //   onTap: () {
+                        //     notifier.deleteCookbook(widget.id);
+                        //     Navigator.pop(context);
+                        //   },
+                        //   child: Container(
+                        //     height: 50,
+                        //     padding: const EdgeInsets.symmetric(horizontal: 12),
 
-                        const SizedBox(height: 16),
+                        //     decoration: BoxDecoration(
+                        //       color: AppColors.errorColor,
+                        //       borderRadius: BorderRadius.circular(10),
+                        //     ),
+                        //     child: Center(
+                        //       child: Text(
+                        //         "Delete Cookbook",
+                        //         style: TextStyles.smallHeadingSecondary,
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ),
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),

@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/components/inputs.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
@@ -466,12 +467,14 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
                         ),
 
                         const SizedBox(height: 8),
-
-                        _Input(controller: _title, hint: 'Cookbook title'),
+                        Text('Cookbook Title', style: TextStyles.subheading),
+                        Input(controller: _title, hint: 'Cookbook title'),
                         const SizedBox(height: 8),
-                        _Input(controller: _author, hint: 'Author (optional)'),
+                        Text('Author', style: TextStyles.subheading),
+                        Input(controller: _author, hint: 'Author (optional)'),
                         const SizedBox(height: 8),
-                        _Input(
+                        Text('Description', style: TextStyles.subheading),
+                        Input(
                           controller: _description,
                           hint: 'Description (optional)',
                           maxLines: 3,
@@ -517,39 +520,6 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
           ),
         );
       },
-    );
-  }
-}
-
-class _Input extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final int maxLines;
-
-  const _Input({
-    required this.controller,
-    required this.hint,
-    this.maxLines = 1,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyles.inputText,
-          border: InputBorder.none,
-          isDense: true,
-        ),
-      ),
     );
   }
 }

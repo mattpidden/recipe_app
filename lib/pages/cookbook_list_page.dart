@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/classes/cookbook.dart';
 import 'package:recipe_app/components/cookbook_card.dart';
 import 'package:recipe_app/components/scroll_tag_selector.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
@@ -15,10 +16,32 @@ class CookbookListPage extends StatefulWidget {
 }
 
 class _CookbookListPageState extends State<CookbookListPage> {
+  final _searchCtrl = TextEditingController();
+  String _q = "";
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  bool _matches(Cookbook c, String q) {
+    if (q.isEmpty) return true;
+    final qq = q.toLowerCase();
+
+    final title = (c.title).toLowerCase();
+    final desc = (c.description ?? "").toLowerCase();
+
+    return title.contains(qq) || desc.contains(qq);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
+        final filtered = notifier.cookbooks
+            .where((c) => _matches(c, _q))
+            .toList();
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
@@ -85,6 +108,9 @@ class _CookbookListPageState extends State<CookbookListPage> {
                   ),
                   child: Center(
                     child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: (v) => setState(() => _q = v.trim()),
+                      style: TextStyles.inputedText,
                       decoration: const InputDecoration(
                         icon: Icon(Icons.search, color: Colors.grey, size: 20),
                         hintText: 'Search',
@@ -109,17 +135,18 @@ class _CookbookListPageState extends State<CookbookListPage> {
                           child: GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: notifier.cookbooks.length,
+                            itemCount: filtered.length,
                             gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2, // number of columns
+                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 170,
+
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  childAspectRatio:
-                                      0.72, // tweak to match  proportions
+                                  mainAxisExtent:
+                                      225, // tweak to match  proportions
                                 ),
                             itemBuilder: (context, index) {
-                              final cookbook = notifier.cookbooks[index];
+                              final cookbook = filtered[index];
                               return InkWell(
                                 borderRadius: BorderRadius.circular(10),
                                 onTap: () {},

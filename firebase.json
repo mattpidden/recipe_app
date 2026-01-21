@@ -1,1 +1,44 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"recipe-app-ebdc0","appId":"1:935348634723:android:fa3803beaaa0125de6e456","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"recipe-app-ebdc0","appId":"1:935348634723:ios:c2d9cfb913c9f3e8e6e456","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"recipe-app-ebdc0","configurations":{"android":"1:935348634723:android:fa3803beaaa0125de6e456","ios":"1:935348634723:ios:c2d9cfb913c9f3e8e6e456"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "recipe-app-ebdc0",
+          "appId": "1:935348634723:android:fa3803beaaa0125de6e456",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "recipe-app-ebdc0",
+          "appId": "1:935348634723:ios:c2d9cfb913c9f3e8e6e456",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "recipe-app-ebdc0",
+          "configurations": {
+            "android": "1:935348634723:android:fa3803beaaa0125de6e456",
+            "ios": "1:935348634723:ios:c2d9cfb913c9f3e8e6e456"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": []
+    }
+  ]
+}

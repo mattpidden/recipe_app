@@ -43,8 +43,8 @@ class TextStyles {
 
   static const subheading = TextStyle(
     fontFamily: "YoungSerif",
-    fontSize: 18.0,
-    fontWeight: FontWeight.w700,
+    fontSize: 20.0,
+    fontWeight: FontWeight.w500,
     color: AppColors.primaryTextColour,
   );
 
@@ -191,10 +191,14 @@ class TextStyles {
     fontWeight: FontWeight.w700,
     color: AppColors.secondaryTextColour,
   );
-
+  static const suggestionText = TextStyle(color: Colors.grey, fontSize: 12);
   static const inputText = TextStyle(color: Colors.grey, fontSize: 14);
   static const inputTextSecondary = TextStyle(
     color: Colors.white,
+    fontSize: 14,
+  );
+  static const inputedText = TextStyle(
+    color: AppColors.primaryTextColour,
     fontSize: 14,
   );
 }

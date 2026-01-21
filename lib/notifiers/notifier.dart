@@ -285,6 +285,30 @@ class Notifier extends ChangeNotifier {
     return cookbook;
   }
 
+  Future<void> deleteCookbook(String cookbookId) async {
+    // optimistic local delete
+    final cookbookIndex = cookbooks.indexWhere((r) => r.id == cookbookId);
+    if (cookbookIndex == -1) return;
+    final cookbook = cookbooks.removeAt(cookbookIndex);
+    notifyListeners();
+
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('cookbooks')
+          .doc(cookbookId)
+          .delete();
+    } catch (e) {
+      // rollback on failure
+      cookbooks.insert(cookbookIndex, cookbook);
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<Recipe?> addRecipe({
     required String title,
     String? description,
@@ -365,5 +389,29 @@ class Notifier extends ChangeNotifier {
     notifyListeners();
 
     return recipe;
+  }
+
+  Future<void> deleteRecipe(String recipeId) async {
+    // optimistic local delete
+    final recipeIndex = recipes.indexWhere((r) => r.id == recipeId);
+    if (recipeIndex == -1) return;
+    final recipe = recipes.removeAt(recipeIndex);
+    notifyListeners();
+
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('recipes')
+          .doc(recipeId)
+          .delete();
+    } catch (e) {
+      // rollback on failure
+      recipes.insert(recipeIndex, recipe);
+      notifyListeners();
+      rethrow;
+    }
   }
 }

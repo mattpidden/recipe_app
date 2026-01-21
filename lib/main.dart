@@ -41,9 +41,9 @@ class MainApp extends StatelessWidget {
 
           // Cursor + selection
           textSelectionTheme: TextSelectionThemeData(
-            cursorColor: AppColors.primaryColour,
-            selectionColor: AppColors.primaryColour,
-            selectionHandleColor: AppColors.primaryColour,
+            cursorColor: AppColors.accentColour1,
+            selectionColor: AppColors.accentColour1.withAlpha(35),
+            selectionHandleColor: AppColors.accentColour1,
           ),
 
           // Progress indicators

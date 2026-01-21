@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/classes/cookbook.dart';
+import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/components/cookbook_card.dart';
 import 'package:recipe_app/components/recipe_card.dart';
 import 'package:recipe_app/components/scroll_tag_selector.dart';
@@ -19,10 +21,55 @@ class CookbookAndRecipePage extends StatefulWidget {
 }
 
 class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
+  final _searchCtrl = TextEditingController();
+  String _q = "";
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  bool _matchesRecipes(Recipe r, String q) {
+    if (q.isEmpty) return true;
+    final qq = q.toLowerCase();
+
+    final title = (r.title ?? "").toLowerCase();
+    final desc = (r.description ?? "").toLowerCase();
+
+    final tags = (r.tags).join(" ").toLowerCase();
+
+    final ingredients = (r.ingredients)
+        .map((i) => i.raw)
+        .join(" ")
+        .toLowerCase();
+
+    return title.contains(qq) ||
+        desc.contains(qq) ||
+        tags.contains(qq) ||
+        ingredients.contains(qq);
+  }
+
+  bool _matchesCookbooks(Cookbook c, String q) {
+    if (q.isEmpty) return true;
+    final qq = q.toLowerCase();
+
+    final title = (c.title).toLowerCase();
+    final desc = (c.description ?? "").toLowerCase();
+
+    return title.contains(qq) || desc.contains(qq);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
+        final filteredRecipes = notifier.recipes
+            .where((r) => _matchesRecipes(r, _q))
+            .toList();
+        final filteredCookbooks = notifier.cookbooks
+            .where((r) => _matchesCookbooks(r, _q))
+            .toList();
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
@@ -48,6 +95,9 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                   ),
                   child: Center(
                     child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: (v) => setState(() => _q = v.trim()),
+                      style: TextStyles.inputedText,
                       decoration: const InputDecoration(
                         icon: Icon(Icons.search, color: Colors.grey, size: 20),
                         hintText: 'Search',
@@ -107,17 +157,17 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                         ),
                         SizedBox(
                           height: 225,
-                          child: notifier.cookbooks.isNotEmpty
+                          child: filteredCookbooks.isNotEmpty
                               ? ListView.separated(
                                   scrollDirection: Axis.horizontal,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                   ),
-                                  itemCount: notifier.cookbooks.length,
+                                  itemCount: filteredCookbooks.length,
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(width: 8),
                                   itemBuilder: (context, index) {
-                                    final cookbook = notifier.cookbooks[index];
+                                    final cookbook = filteredCookbooks[index];
                                     return InkWell(
                                       borderRadius: BorderRadius.circular(10),
                                       onTap: () {},
@@ -131,15 +181,17 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                   },
                                 )
                               : GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const AddCookbookManuallyPage(),
-                                      ),
-                                    );
-                                  },
+                                  onTap: notifier.cookbooks.isEmpty
+                                      ? () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const AddCookbookManuallyPage(),
+                                            ),
+                                          );
+                                        }
+                                      : null,
                                   child: Container(
                                     width: 170,
                                     padding: const EdgeInsets.symmetric(
@@ -157,13 +209,16 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          Icon(
-                                            Icons.add,
-                                            color:
-                                                AppColors.secondaryTextColour,
-                                          ),
+                                          if (notifier.cookbooks.isEmpty)
+                                            Icon(
+                                              Icons.add,
+                                              color:
+                                                  AppColors.secondaryTextColour,
+                                            ),
                                           Text(
-                                            "Add Your First Cookbook",
+                                            notifier.cookbooks.isEmpty
+                                                ? "Add Your First Cookbook"
+                                                : "No Results Found",
                                             style: TextStyles
                                                 .smallHeadingSecondary,
                                             textAlign: TextAlign.center,
@@ -248,17 +303,17 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                         ),
                         SizedBox(
                           height: 245,
-                          child: notifier.recipes.isNotEmpty
+                          child: filteredRecipes.isNotEmpty
                               ? ListView.separated(
                                   scrollDirection: Axis.horizontal,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                   ),
-                                  itemCount: notifier.recipes.length,
+                                  itemCount: filteredRecipes.length,
                                   separatorBuilder: (_, __) =>
                                       const SizedBox(width: 8),
                                   itemBuilder: (context, index) {
-                                    final recipe = notifier.recipes[index];
+                                    final recipe = filteredRecipes[index];
                                     return InkWell(
                                       borderRadius: BorderRadius.circular(10),
                                       onTap: () {},
@@ -272,15 +327,17 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                   },
                                 )
                               : GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const AddRecipeManuallyPage(),
-                                      ),
-                                    );
-                                  },
+                                  onTap: notifier.recipes.isEmpty
+                                      ? () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const AddRecipeManuallyPage(),
+                                            ),
+                                          );
+                                        }
+                                      : null,
                                   child: Container(
                                     width: 170,
                                     padding: const EdgeInsets.symmetric(
@@ -298,13 +355,16 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          Icon(
-                                            Icons.note_add_outlined,
-                                            color:
-                                                AppColors.secondaryTextColour,
-                                          ),
+                                          if (notifier.recipes.isEmpty)
+                                            Icon(
+                                              Icons.note_add_outlined,
+                                              color:
+                                                  AppColors.secondaryTextColour,
+                                            ),
                                           Text(
-                                            "Add Your First Recipe",
+                                            notifier.recipes.isEmpty
+                                                ? "Add Your First Recipe"
+                                                : "No Results Found",
                                             style: TextStyles
                                                 .smallHeadingSecondary,
                                             textAlign: TextAlign.center,

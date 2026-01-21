@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:recipe_app/classes/cookbook.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/cookbook_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 class RecipePage extends StatefulWidget {
   final String id;
@@ -15,6 +17,33 @@ class RecipePage extends StatefulWidget {
 }
 
 class _RecipePageState extends State<RecipePage> {
+  late final PageController _imgController;
+  Timer? _imgTimer;
+  int _imgIndex = 0;
+  @override
+  void initState() {
+    super.initState();
+    _imgController = PageController();
+    final notifier = context.read<Notifier>();
+    final recipe = notifier.recipes.firstWhere((r) => r.id == widget.id);
+    _imgTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted || recipe.imageUrls.isEmpty) return;
+      _imgIndex = (_imgIndex + 1) % recipe.imageUrls.length;
+      _imgController.animateToPage(
+        _imgIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _imgTimer?.cancel();
+    _imgController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
@@ -28,6 +57,7 @@ class _RecipePageState extends State<RecipePage> {
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
+            bottom: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -52,138 +82,163 @@ class _RecipePageState extends State<RecipePage> {
                   ],
                 ),
 
-                // Top layout:
-                // - If cookbook exists: cookbook card left + recipe card right
-                // - Else: big full-width image card
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Cookbook card (left)
-                      Container(
-                        width: 140,
-                        height: 180,
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(7),
-                          child: (recipe.imageUrls.firstOrNull == null)
-                              ? const Center(
-                                  child: Icon(
-                                    Icons.menu_book,
-                                    color: AppColors.accentColour1,
-                                    size: 40,
-                                  ),
-                                )
-                              : Image.network(
-                                  recipe.imageUrls.firstOrNull!,
-                                  fit: BoxFit.cover,
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Recipe summary card (right)
-                      Expanded(
-                        child: Container(
-                          height: 180,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                recipe.title,
-                                style: TextStyles.smallHeading,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              if ((recipe.description ?? '')
-                                  .trim()
-                                  .isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  recipe.description!,
-                                  style: TextStyles.inputText,
-                                  maxLines: 5,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                              const Spacer(),
-                              Row(
-                                children: [
-                                  if (recipe.timeMinutes != null)
-                                    _Pill(text: '${recipe.timeMinutes} min'),
-                                  if (recipe.timeMinutes != null &&
-                                      recipe.servings != null)
-                                    const SizedBox(width: 6),
-                                  if (recipe.servings != null)
-                                    _Pill(text: '${recipe.servings} servings'),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Extra images (if any) when cookbook exists, or if more than 1 image
-                        if (recipe.imageUrls.length > 1) ...[
-                          const Text('Photos', style: TextStyles.pageTitle),
-                          const SizedBox(height: 8),
-                          Container(
-                            height: 120,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: recipe.imageUrls.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (context, i) {
-                                final url = recipe.imageUrls[i];
-                                return Container(
-                                  width: 170,
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(7),
-                                    child: Image.network(
-                                      url,
-                                      fit: BoxFit.cover,
+                        // Top layout:
+                        // - If cookbook exists: cookbook card left + recipe card right
+                        // - Else: big full-width image card
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Cookbook card (left)
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, c) {
+                                  final isWide = c.maxWidth >= 380;
+
+                                  return Container(
+                                    height: 180,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                  ),
-                                );
-                              },
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(7),
+                                      child: recipe.imageUrls.isEmpty
+                                          ? const Center(
+                                              child: Icon(
+                                                Icons.menu_book,
+                                                color: AppColors.accentColour1,
+                                                size: 40,
+                                              ),
+                                            )
+                                          : isWide
+                                          // ✅ Wide: show multiple images, smooth scroll
+                                          ? ListView.separated(
+                                              scrollDirection: Axis.horizontal,
+                                              padding: EdgeInsets.zero,
+                                              itemCount:
+                                                  recipe.imageUrls.length,
+                                              separatorBuilder: (_, __) =>
+                                                  const SizedBox(width: 8),
+                                              itemBuilder: (context, i) {
+                                                return AspectRatio(
+                                                  aspectRatio: 4 / 3,
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          7,
+                                                        ),
+                                                    child: Image.network(
+                                                      recipe.imageUrls[i],
+                                                      fit: BoxFit.cover,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            )
+                                          // ✅ Normal: PageView + dots
+                                          : Stack(
+                                              alignment: Alignment.bottomCenter,
+                                              children: [
+                                                PageView.builder(
+                                                  controller: _imgController,
+                                                  itemCount:
+                                                      recipe.imageUrls.length,
+                                                  itemBuilder: (context, i) =>
+                                                      Image.network(
+                                                        recipe.imageUrls[i],
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                ),
+                                                Padding(
+                                                  padding: const EdgeInsets.all(
+                                                    6,
+                                                  ),
+                                                  child: SmoothPageIndicator(
+                                                    controller: _imgController,
+                                                    count:
+                                                        recipe.imageUrls.length,
+                                                    effect: WormEffect(
+                                                      dotHeight: 6,
+                                                      dotWidth: 6,
+                                                      activeDotColor:
+                                                          Colors.white,
+                                                      dotColor: Colors.white
+                                                          .withAlpha(125),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                    ),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
+                            const SizedBox(width: 8),
+
+                            // Recipe summary card (right)
+                            Container(
+                              height: 180,
+                              width: 210,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    recipe.title,
+                                    style: TextStyles.smallHeading,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if ((recipe.description ?? '')
+                                      .trim()
+                                      .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      recipe.description!,
+                                      style: TextStyles.inputText,
+                                      maxLines: 5,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                  const Spacer(),
+                                  Row(
+                                    children: [
+                                      if (recipe.timeMinutes != null)
+                                        _Pill(
+                                          text: '${recipe.timeMinutes} min',
+                                        ),
+                                      if (recipe.timeMinutes != null &&
+                                          recipe.servings != null)
+                                        const SizedBox(width: 6),
+                                      if (recipe.servings != null)
+                                        _Pill(
+                                          text: '${recipe.servings} servings',
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 4),
+                        // Extra images (if any) when cookbook exists, or if more than 1 image
 
                         // Tags
                         if (recipe.tags.isNotEmpty) ...[
-                          const Text('Tags', style: TextStyles.pageTitle),
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
@@ -195,7 +250,7 @@ class _RecipePageState extends State<RecipePage> {
                         ],
 
                         // Ingredients
-                        const Text('Ingredients', style: TextStyles.pageTitle),
+                        const Text('Ingredients', style: TextStyles.subheading),
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
@@ -222,9 +277,35 @@ class _RecipePageState extends State<RecipePage> {
                                             style: TextStyles.inputText,
                                           ),
                                           Expanded(
-                                            child: Text(
-                                              ing.raw,
-                                              style: TextStyles.inputText,
+                                            child: Text.rich(
+                                              TextSpan(
+                                                style: TextStyles.inputText,
+                                                children: [
+                                                  if (ing.quantity != null)
+                                                    TextSpan(
+                                                      text: '${ing.quantity} ',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  if (ing.unit != null)
+                                                    TextSpan(
+                                                      text: '${ing.unit} ',
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  TextSpan(
+                                                    text: ing.item ?? ing.raw,
+                                                  ),
+                                                  if (ing.notes != null)
+                                                    TextSpan(
+                                                      text: ' (${ing.notes})',
+                                                    ),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -237,7 +318,7 @@ class _RecipePageState extends State<RecipePage> {
                         const SizedBox(height: 16),
 
                         // Steps
-                        const Text('Steps', style: TextStyles.pageTitle),
+                        const Text('Steps', style: TextStyles.subheading),
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
@@ -297,7 +378,7 @@ class _RecipePageState extends State<RecipePage> {
 
                         // Notes
                         if ((recipe.notes ?? '').trim().isNotEmpty) ...[
-                          const Text('Notes', style: TextStyles.pageTitle),
+                          const Text('Notes', style: TextStyles.subheading),
                           const SizedBox(height: 8),
                           Container(
                             width: double.infinity,
@@ -315,7 +396,7 @@ class _RecipePageState extends State<RecipePage> {
                         ],
 
                         // Source + cookbook link
-                        const Text('Source', style: TextStyles.pageTitle),
+                        const Text('Source', style: TextStyles.subheading),
                         Row(
                           children: [
                             if (cookbook != null)
@@ -409,8 +490,29 @@ class _RecipePageState extends State<RecipePage> {
                             ),
                           ],
                         ),
+                        // const SizedBox(height: 8),
+                        // GestureDetector(
+                        //   onTap: () {
+                        //     notifier.deleteRecipe(widget.id);
+                        //     Navigator.pop(context);
+                        //   },
+                        //   child: Container(
+                        //     height: 50,
+                        //     padding: const EdgeInsets.symmetric(horizontal: 12),
 
-                        const SizedBox(height: 16),
+                        //     decoration: BoxDecoration(
+                        //       color: AppColors.errorColor,
+                        //       borderRadius: BorderRadius.circular(10),
+                        //     ),
+                        //     child: Center(
+                        //       child: Text(
+                        //         "Delete Recipe",
+                        //         style: TextStyles.smallHeadingSecondary,
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ),
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),
