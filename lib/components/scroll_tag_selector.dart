@@ -5,7 +5,13 @@ import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
 class ScrollTagSelector extends StatefulWidget {
-  const ScrollTagSelector({super.key});
+  final List<String> tagList;
+  final void Function(Set<String>) onUpdated;
+  const ScrollTagSelector({
+    super.key,
+    this.tagList = const [],
+    required this.onUpdated,
+  });
 
   @override
   State<ScrollTagSelector> createState() => _ScrollTagSelectorState();
@@ -18,15 +24,19 @@ class _ScrollTagSelectorState extends State<ScrollTagSelector> {
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
+        final theTagList = widget.tagList.isNotEmpty
+            ? widget.tagList
+            : notifier.allTags;
+
         return SizedBox(
           height: 30,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: notifier.allTags.length,
+            itemCount: theTagList.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
-              final tags = [...notifier.allTags]
+              final tags = [...theTagList]
                 ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
               final tag = tags[index];
               final isSelected = _selected.contains(tag);
@@ -41,6 +51,7 @@ class _ScrollTagSelectorState extends State<ScrollTagSelector> {
                       _selected.add(tag);
                     }
                   });
+                  widget.onUpdated(_selected);
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(

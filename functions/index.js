@@ -150,7 +150,7 @@ exports.parseRecipeFromOcr = onCall(
                     nullable: true,
                 },
                 notes: { type: Type.STRING, nullable: true },
-                pageNumber: { type: Type.NUMBER, nullable: true },
+                pageNumber: { type: Type.INTEGER, nullable: true },
                 // optional debugging fields so you can show “confidence” UI
                 confidence: { type: Type.NUMBER, nullable: true },
                 warnings: {
@@ -174,6 +174,7 @@ exports.parseRecipeFromOcr = onCall(
         - Ingredients: keep 'raw' exactly as seen (cleaned), and only fill quantity/unit/item/notes when confident.
         - Steps: keep as an ordered list of instructions (no numbering needed).
         - Title should be short and clean.
+        - Every field except 'warnings' and 'confidence' will be user facing - do not include technical jargon, ensure capitalisation is neat and grammatically correct.
         - Add warnings (array of strings) for anything suspicious (e.g. missing steps, merged columns, OCR noise).
         - confidence: 0.0 to 1.0 (overall).
         `.trim();

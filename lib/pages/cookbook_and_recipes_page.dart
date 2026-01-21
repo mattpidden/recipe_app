@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:recipe_app/classes/cookbook.dart';
-import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/components/cookbook_card.dart';
 import 'package:recipe_app/components/recipe_card.dart';
 import 'package:recipe_app/components/scroll_tag_selector.dart';
@@ -23,6 +21,7 @@ class CookbookAndRecipePage extends StatefulWidget {
 class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
   final _searchCtrl = TextEditingController();
   String _q = "";
+  Set<String> _qTags = {};
 
   @override
   void dispose() {
@@ -30,45 +29,27 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
     super.dispose();
   }
 
-  bool _matchesRecipes(Recipe r, String q) {
-    if (q.isEmpty) return true;
-    final qq = q.toLowerCase();
-
-    final title = (r.title ?? "").toLowerCase();
-    final desc = (r.description ?? "").toLowerCase();
-
-    final tags = (r.tags).join(" ").toLowerCase();
-
-    final ingredients = (r.ingredients)
-        .map((i) => i.raw)
-        .join(" ")
-        .toLowerCase();
-
-    return title.contains(qq) ||
-        desc.contains(qq) ||
-        tags.contains(qq) ||
-        ingredients.contains(qq);
-  }
-
-  bool _matchesCookbooks(Cookbook c, String q) {
-    if (q.isEmpty) return true;
-    final qq = q.toLowerCase();
-
-    final title = (c.title).toLowerCase();
-    final desc = (c.description ?? "").toLowerCase();
-
-    return title.contains(qq) || desc.contains(qq);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
         final filteredRecipes = notifier.recipes
-            .where((r) => _matchesRecipes(r, _q))
+            .where((r) => notifier.matchRecipes(r, _q, _qTags))
             .toList();
         final filteredCookbooks = notifier.cookbooks
-            .where((r) => _matchesCookbooks(r, _q))
+            .where((r) => notifier.matchCookbooks(r, _q, _qTags))
+            .toList();
+        final listOfUsedTags = notifier.cookbooks
+            .map(
+              (c) => c.recipes
+                  .map((r) => r.tags)
+                  .toList()
+                  .expand((e) => e)
+                  .toSet()
+                  .toList(),
+            )
+            .expand((e) => e)
+            .toSet()
             .toList();
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
@@ -109,7 +90,14 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ScrollTagSelector(),
+                ScrollTagSelector(
+                  tagList: listOfUsedTags,
+                  onUpdated: (selectedSet) {
+                    setState(() {
+                      _qTags = selectedSet;
+                    });
+                  },
+                ),
                 const SizedBox(height: 16),
                 Expanded(
                   child: SingleChildScrollView(

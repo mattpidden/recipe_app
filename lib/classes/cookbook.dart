@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:recipe_app/classes/recipe.dart';
 
 class Cookbook {
   final String id;
@@ -17,7 +18,9 @@ class Cookbook {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  const Cookbook({
+  List<Recipe> recipes = [];
+
+  Cookbook({
     required this.id,
     required this.title,
     this.isbn,
@@ -28,6 +31,7 @@ class Cookbook {
     this.recipeCount,
     required this.createdAt,
     required this.updatedAt,
+    this.recipes = const [],
   });
 
   // ---------- Firestore ----------
@@ -82,6 +86,7 @@ class Cookbook {
     DateTime? lastCookedAt,
     int? recipeCount,
     DateTime? updatedAt,
+    List<Recipe>? recipes,
   }) {
     return Cookbook(
       id: id,
@@ -94,6 +99,7 @@ class Cookbook {
       recipeCount: recipeCount ?? this.recipeCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      recipes: recipes ?? this.recipes,
     );
   }
 

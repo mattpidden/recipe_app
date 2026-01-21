@@ -156,6 +156,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     setState(() => _scanning = true);
 
     try {
+      showFullScreenLoader(context);
       final ocrPayload = await _runOcr(files);
 
       final fn = FirebaseFunctions.instanceFor(
@@ -172,15 +173,28 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Scan complete — review and save')),
+        const SnackBar(
+          content: Text(
+            'Scan complete - review and save',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
       );
     } catch (e) {
       debugPrint(e.toString());
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Scan failed')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Scan failed - please try again',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
     } finally {
+      hideFullScreenLoader(context);
       if (mounted) setState(() => _scanning = false);
     }
   }
@@ -404,6 +418,53 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     );
   }
 
+  void showFullScreenLoader(BuildContext context, {String? message}) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Loading',
+      barrierColor: AppColors.primaryTextColour.withAlpha(225),
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (_, __, ___) {
+        return SafeArea(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.secondaryTextColour,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    message ?? 'Processing recipe...',
+                    style: TextStyles.subheading.copyWith(
+                      color: AppColors.secondaryTextColour,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    message ?? 'Please do not leave this page',
+                    style: TextStyles.bodyTextSecondary,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void hideFullScreenLoader(BuildContext context) {
+    if (Navigator.of(context, rootNavigator: true).canPop()) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
   Future<void> _addIngredientFromInput() async {
     final raw = _ingredientInput.text.trim();
     if (raw.isEmpty || _ingredientParsing) return;
@@ -540,9 +601,15 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       Navigator.pop(context);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to add recipe')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Failed to add recipe - please try again',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -605,34 +672,10 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Center(
-                                child: _scanning
-                                    ? Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          SizedBox(
-                                            height: 18,
-                                            width: 18,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color:
-                                                  AppColors.secondaryTextColour,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Flexible(
-                                            child: Text(
-                                              'Processing... (this can take up to 1min)',
-                                              style: TextStyles
-                                                  .smallHeadingSecondary,
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Text(
-                                        'Scan recipe from cookbook',
-                                        style: TextStyles.smallHeadingSecondary,
-                                      ),
+                                child: Text(
+                                  'Scan recipe from cookbook',
+                                  style: TextStyles.smallHeadingSecondary,
+                                ),
                               ),
                             ),
                           ),
@@ -1315,7 +1358,14 @@ class _ParsedIngredientPill extends StatelessWidget {
                 const Icon(Icons.notes, size: 16, color: Colors.grey),
                 const SizedBox(width: 6),
 
-                Text('${ingredient.notes}', style: TextStyles.inputedText),
+                Expanded(
+                  child: Text(
+                    '${ingredient.notes}',
+                    style: TextStyles.inputedText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
         ],

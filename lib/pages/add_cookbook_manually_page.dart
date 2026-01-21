@@ -109,8 +109,10 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'No barcode found — try again with the barcode filling the frame',
+              'No barcode found — please try again',
+              style: TextStyles.smallHeadingSecondary,
             ),
+            backgroundColor: AppColors.primaryColour,
           ),
         );
         return;
@@ -152,7 +154,13 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
       if (res.statusCode < 200 || res.statusCode >= 300) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not look up this ISBN')),
+          const SnackBar(
+            content: Text(
+              'Could not look up this ISBN',
+              style: TextStyles.smallHeadingSecondary,
+            ),
+            backgroundColor: AppColors.primaryColour,
+          ),
         );
         return;
       }
@@ -162,7 +170,13 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
       if (items.isEmpty) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No book found for that barcode')),
+          const SnackBar(
+            content: Text(
+              'No book found for that barcode',
+              style: TextStyles.smallHeadingSecondary,
+            ),
+            backgroundColor: AppColors.primaryColour,
+          ),
         );
         return;
       }
@@ -224,9 +238,15 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
       // ignore: avoid_print
       print('[BARCODE] Error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to scan barcode')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Failed to scan barcode - please try again',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
     } finally {
       await scanner?.close();
       if (mounted) setState(() => _saving = false);
@@ -286,9 +306,15 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
       Navigator.pop(context);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to add cookbook')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Failed to add cookbook - please try again',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:recipe_app/classes/cookbook.dart';
 import 'package:recipe_app/components/cookbook_card.dart';
 import 'package:recipe_app/components/scroll_tag_selector.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
@@ -18,6 +17,7 @@ class CookbookListPage extends StatefulWidget {
 class _CookbookListPageState extends State<CookbookListPage> {
   final _searchCtrl = TextEditingController();
   String _q = "";
+  Set<String> _qTags = {};
 
   @override
   void dispose() {
@@ -25,22 +25,24 @@ class _CookbookListPageState extends State<CookbookListPage> {
     super.dispose();
   }
 
-  bool _matches(Cookbook c, String q) {
-    if (q.isEmpty) return true;
-    final qq = q.toLowerCase();
-
-    final title = (c.title).toLowerCase();
-    final desc = (c.description ?? "").toLowerCase();
-
-    return title.contains(qq) || desc.contains(qq);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
         final filtered = notifier.cookbooks
-            .where((c) => _matches(c, _q))
+            .where((c) => notifier.matchCookbooks(c, _q, _qTags))
+            .toList();
+        final listOfUsedTags = notifier.cookbooks
+            .map(
+              (c) => c.recipes
+                  .map((r) => r.tags)
+                  .toList()
+                  .expand((e) => e)
+                  .toSet()
+                  .toList(),
+            )
+            .expand((e) => e)
+            .toSet()
             .toList();
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
@@ -122,7 +124,14 @@ class _CookbookListPageState extends State<CookbookListPage> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ScrollTagSelector(),
+                ScrollTagSelector(
+                  tagList: listOfUsedTags,
+                  onUpdated: (selectedSet) {
+                    setState(() {
+                      _qTags = selectedSet;
+                    });
+                  },
+                ),
 
                 const SizedBox(height: 16),
                 Expanded(

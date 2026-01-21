@@ -21,11 +21,6 @@ class _CookbookPageState extends State<CookbookPage> {
         final cookbook = notifier.cookbooks.firstWhere(
           (c) => c.id == widget.id,
         );
-
-        final recipes = notifier.recipes
-            .where((r) => (r.cookbookId ?? '') == widget.id)
-            .toList();
-
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
@@ -138,7 +133,7 @@ class _CookbookPageState extends State<CookbookPage> {
                         const SizedBox(height: 16),
                         Text('Recipes', style: TextStyles.pageTitle),
 
-                        if (recipes.isEmpty)
+                        if (cookbook.recipes.isEmpty)
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(12),
@@ -152,11 +147,11 @@ class _CookbookPageState extends State<CookbookPage> {
                             ),
                           ),
 
-                        if (recipes.isNotEmpty)
+                        if (cookbook.recipes.isNotEmpty)
                           GridView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            itemCount: recipes.length,
+                            itemCount: cookbook.recipes.length,
                             gridDelegate:
                                 const SliverGridDelegateWithMaxCrossAxisExtent(
                                   maxCrossAxisExtent: 170,
@@ -164,10 +159,10 @@ class _CookbookPageState extends State<CookbookPage> {
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
                                   mainAxisExtent:
-                                      245, // tweak to match  proportions
+                                      250, // tweak to match  proportions
                                 ),
                             itemBuilder: (context, index) {
-                              final recipe = recipes[index];
+                              final recipe = cookbook.recipes[index];
                               return InkWell(
                                 borderRadius: BorderRadius.circular(10),
                                 onTap: () {},

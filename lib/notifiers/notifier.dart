@@ -241,7 +241,14 @@ class Notifier extends ChangeNotifier {
           .get();
 
       recipes = recipesSnap.docs.map(Recipe.fromFirestore).toList();
+      // for each cookbook, add all the recipes with its id to its list
       cookbooks = cookbooksSnap.docs.map(Cookbook.fromFirestore).toList();
+      for (Cookbook c in cookbooks) {
+        final cRecipes = recipes
+            .where((r) => (r.cookbookId ?? '') == c.id)
+            .toList();
+        c.recipes = cRecipes;
+      }
     } catch (_) {
       // If anything goes wrong, keep it safe and empty for now
       recipes = [];
@@ -413,5 +420,52 @@ class Notifier extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  bool matchRecipes(Recipe r, String q, Set<String> qTags) {
+    final qq = q.trim().toLowerCase();
+
+    // ---- TEXT MATCH ----
+    bool textMatch = true;
+    if (qq.isNotEmpty) {
+      final title = r.title.toLowerCase();
+      final desc = (r.description ?? '').toLowerCase();
+      final ingredients = r.ingredients
+          .map((i) => i.raw)
+          .join(' ')
+          .toLowerCase();
+
+      textMatch =
+          title.contains(qq) || desc.contains(qq) || ingredients.contains(qq);
+    }
+
+    // ---- TAG MATCH (exact) ----
+    bool tagMatch = true;
+    if (qTags.isNotEmpty) {
+      final recipeTags = r.tags.map((t) => t.toLowerCase()).toSet();
+
+      tagMatch = qTags.every((t) => recipeTags.contains(t.toLowerCase()));
+    }
+
+    return textMatch && tagMatch;
+  }
+
+  bool matchCookbooks(Cookbook c, String q, Set<String> qTags) {
+    final qq = q.trim().toLowerCase();
+
+    // text match against cookbook fields
+    final title = c.title.toLowerCase();
+    final desc = (c.description ?? '').toLowerCase();
+
+    final bool cookbookTextMatch = qq.isEmpty
+        ? true
+        : (title.contains(qq) || desc.contains(qq));
+
+    // recipe match: if any recipe matches both q and qTags, include cookbook
+    final bool recipeMatch = c.recipes.any((r) => matchRecipes(r, q, qTags));
+
+    // If query/tags are empty, this returns true (shows all)
+    // Otherwise: match if cookbook matches directly OR any recipe matches
+    return (cookbookTextMatch) || recipeMatch;
   }
 }
