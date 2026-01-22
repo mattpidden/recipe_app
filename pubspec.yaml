@@ -63,3 +63,4 @@ flutter:
   assets:
     - .env
     - assets/logo.png
+    - assets/white_logo.png

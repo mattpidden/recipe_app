@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/cookbook_page.dart';
+import 'package:recipe_app/pages/cooking_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -118,7 +120,6 @@ class _RecipePageState extends State<RecipePage> {
                                               ),
                                             )
                                           : isWide
-                                          // ✅ Wide: show multiple images, smooth scroll
                                           ? ListView.separated(
                                               scrollDirection: Axis.horizontal,
                                               padding: EdgeInsets.zero,
@@ -211,7 +212,7 @@ class _RecipePageState extends State<RecipePage> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-
+                                  const SizedBox(height: 8),
                                   Row(
                                     children: [
                                       if (recipe.timeMinutes != null)
@@ -234,7 +235,6 @@ class _RecipePageState extends State<RecipePage> {
                         ),
 
                         const SizedBox(height: 8),
-                        // Extra images (if any) when cookbook exists, or if more than 1 image
 
                         // Tags
                         if (recipe.tags.isNotEmpty) ...[
@@ -245,74 +245,76 @@ class _RecipePageState extends State<RecipePage> {
                                 .map((t) => _TagChip(text: t))
                                 .toList(),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 8),
                         ],
+                        Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const CookingPage(),
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  height: 50,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accentColour1,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      "Cook Now",
+                                      style: TextStyles.smallHeadingSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {},
+                                child: Container(
+                                  height: 50,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryColour,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(
+                                    child: Image.asset("assets/white_logo.png"),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
 
                         // Ingredients
                         const Text('Ingredients', style: TextStyles.subheading),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
+                        if (recipe.ingredients.isNotEmpty)
+                          Column(
+                            children: List.generate(recipe.ingredients.length, (
+                              i,
+                            ) {
+                              final ingred = recipe.ingredients[i];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: ParsedIngredientPill(ingredient: ingred),
+                              );
+                            }),
                           ),
-                          child: recipe.ingredients.isEmpty
-                              ? const Text(
-                                  'No ingredients yet.',
-                                  style: TextStyles.inputedText,
-                                )
-                              : Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: recipe.ingredients.map((ing) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            '•  ',
-                                            style: TextStyles.inputedText,
-                                          ),
-                                          Expanded(
-                                            child: Text.rich(
-                                              TextSpan(
-                                                style: TextStyles.inputedText,
-                                                children: [
-                                                  if (ing.quantity != null)
-                                                    TextSpan(
-                                                      text: '${ing.quantity} ',
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  if (ing.unit != null)
-                                                    TextSpan(
-                                                      text: '${ing.unit} ',
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                      ),
-                                                    ),
-                                                  TextSpan(
-                                                    text: ing.item ?? ing.raw,
-                                                  ),
-                                                  if (ing.notes != null)
-                                                    TextSpan(
-                                                      text: ' (${ing.notes})',
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                        ),
 
                         const SizedBox(height: 16),
 
@@ -572,9 +574,9 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 74,
-            child: Text(label, style: TextStyles.inputedText),
+          Text(
+            "$label: ",
+            style: TextStyles.inputedText.copyWith(fontWeight: FontWeight.bold),
           ),
           Expanded(child: Text(value, style: TextStyles.inputedText)),
         ],

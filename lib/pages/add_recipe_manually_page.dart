@@ -7,6 +7,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/ingredient.dart';
+import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/components/inputs.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/styles/colours.dart';
@@ -272,6 +273,11 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
         ? List<String>.from(data['tags'])
               .where(
                 (t) => notifier.allTags.any(
+                  (a) => a.toLowerCase() == t.toLowerCase(),
+                ),
+              )
+              .map(
+                (t) => notifier.allTags.firstWhere(
                   (a) => a.toLowerCase() == t.toLowerCase(),
                 ),
               )
@@ -1070,7 +1076,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Expanded(
-                                        child: _ParsedIngredientPill(
+                                        child: ParsedIngredientPill(
                                           ingredient: ingred,
                                         ),
                                       ),
@@ -1301,75 +1307,6 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
           ),
         );
       },
-    );
-  }
-}
-
-class _ParsedIngredientPill extends StatelessWidget {
-  final Ingredient ingredient;
-  const _ParsedIngredientPill({required this.ingredient});
-
-  @override
-  Widget build(BuildContext context) {
-    final qty = ingredient.quantity;
-    final unit = ingredient.unit;
-    final item = ingredient.item ?? ingredient.raw;
-
-    final left = [
-      if (qty != null) qty.toString(),
-      if (unit != null && unit.trim().isNotEmpty) unit,
-    ].join(' ');
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.check_circle, size: 16, color: Colors.green),
-              const SizedBox(width: 6),
-              if (left.isNotEmpty)
-                Text(
-                  left,
-                  style: TextStyles.inputedText.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              if (left.isNotEmpty) const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  item,
-                  style: TextStyles.inputedText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          if (ingredient.notes != null && ingredient.notes!.trim().isNotEmpty)
-            Row(
-              children: [
-                const Icon(Icons.notes, size: 16, color: Colors.grey),
-                const SizedBox(width: 6),
-
-                Expanded(
-                  child: Text(
-                    '${ingredient.notes}',
-                    style: TextStyles.inputedText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
     );
   }
 }
