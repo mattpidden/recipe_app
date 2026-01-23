@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/cookbook_page.dart';
@@ -9,6 +11,7 @@ import 'package:recipe_app/pages/cooking_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RecipePage extends StatefulWidget {
   final String id;
@@ -22,6 +25,72 @@ class _RecipePageState extends State<RecipePage> {
   late final PageController _imgController;
   Timer? _imgTimer;
   int _imgIndex = 0;
+  bool modified = false;
+  bool loading = false;
+  int? _baseServings;
+  int? _currentServings;
+  double _scale = 1.0;
+  List<Ingredient> subs = [];
+  final Map<int, List<Ingredient>> _subsByIndex = {};
+
+  void handleDecreaseServing() {
+    if (_currentServings == null) return;
+    if (_currentServings! <= 1) return;
+
+    setState(() {
+      _currentServings = _currentServings! - 1;
+      _scale = _currentServings! / _baseServings!;
+      modified = _currentServings != _baseServings;
+    });
+  }
+
+  void handleIncreaseServing() {
+    if (_currentServings == null) return;
+    if (_currentServings! >= 100) return;
+
+    setState(() {
+      _currentServings = _currentServings! + 1;
+      _scale = _currentServings! / _baseServings!;
+      modified = _currentServings != _baseServings;
+    });
+  }
+
+  Future<void> handleSubs(int index, String recipe, String ingredient) async {
+    try {
+      final fn = FirebaseFunctions.instanceFor(
+        region: 'europe-west2',
+      ).httpsCallable('substituteIngredient');
+
+      final res = await fn.call({'recipe': recipe, 'ingredient': ingredient});
+      final rawList = List.from(res.data);
+      final listOfSubs = rawList
+          .map((e) => Ingredient.fromMap(Map<String, dynamic>.from(e as Map)))
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        _subsByIndex[index] = listOfSubs;
+      });
+    } catch (e) {
+      debugPrint(e.toString());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Failed to find substitutes',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
+    } finally {}
+  }
+
+  void handleRemoveSubs(index) {
+    setState(() {
+      _subsByIndex[index] = [];
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -37,6 +106,9 @@ class _RecipePageState extends State<RecipePage> {
         curve: Curves.easeInOut,
       );
     });
+    _baseServings = recipe.servings;
+    _currentServings = recipe.servings;
+    _scale = 1.0;
   }
 
   @override
@@ -90,6 +162,93 @@ class _RecipePageState extends State<RecipePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (modified)
+                          GestureDetector(
+                            onTap: loading
+                                ? null
+                                : () async {
+                                    setState(() {
+                                      loading = true;
+                                    });
+                                    try {
+                                      await notifier.updateRecipe(
+                                        recipe.copyWith(
+                                          ingredients: recipe.ingredients
+                                              .map(
+                                                (i) => Ingredient(
+                                                  raw: i.raw,
+                                                  unit: i.unit,
+                                                  item: i.item,
+                                                  notes: i.notes,
+                                                  quantity:
+                                                      ((i.quantity ?? 0) *
+                                                              _scale) ==
+                                                          0
+                                                      ? null
+                                                      : (i.quantity ?? 0) *
+                                                            _scale,
+                                                ),
+                                              )
+                                              .toList(),
+                                          servings: _currentServings,
+                                        ),
+                                      );
+                                      setState(() {
+                                        modified = false;
+                                        _scale = 1;
+                                      });
+                                    } catch (_) {
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Failed to update recipe - please try again',
+                                            style: TextStyles
+                                                .smallHeadingSecondary,
+                                          ),
+                                          backgroundColor:
+                                              AppColors.primaryColour,
+                                        ),
+                                      );
+                                    } finally {
+                                      if (mounted)
+                                        setState(() => loading = false);
+                                    }
+                                    setState(() {
+                                      loading = false;
+                                    });
+                                  },
+                            child: Container(
+                              height: 50,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: loading
+                                    ? Colors.grey
+                                    : AppColors.primaryColour,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Center(
+                                child: loading
+                                    ? const SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.secondaryTextColour,
+                                        ),
+                                      )
+                                    : Text(
+                                        'Save Recipe',
+                                        style: TextStyles.smallHeadingSecondary,
+                                      ),
+                              ),
+                            ),
+                          ),
                         // Top layout:
                         // - If cookbook exists: cookbook card left + recipe card right
                         // - Else: big full-width image card
@@ -205,29 +364,76 @@ class _RecipePageState extends State<RecipePage> {
 
                                   const SizedBox(height: 4),
                                   Expanded(
-                                    child: Text(
-                                      recipe.description!,
-                                      style: TextStyles.inputText,
-                                      maxLines: 5,
-                                      overflow: TextOverflow.ellipsis,
+                                    child: SingleChildScrollView(
+                                      child: Text(
+                                        recipe.description!,
+                                        style: TextStyles.inputText,
+                                        maxLines: 50,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      if (recipe.timeMinutes != null)
-                                        _Pill(
-                                          text: '${recipe.timeMinutes} min',
+                                  if (recipe.servings != null)
+                                    Row(
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () => handleDecreaseServing(),
+                                          child: Container(
+                                            height: 30,
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentColour1,
+                                              borderRadius: BorderRadius.only(
+                                                topLeft: Radius.circular(10),
+                                                bottomLeft: Radius.circular(10),
+                                              ),
+                                            ),
+                                            child: Icon(
+                                              Icons.remove,
+                                              size: 14,
+                                              color:
+                                                  AppColors.secondaryTextColour,
+                                            ),
+                                          ),
                                         ),
-                                      if (recipe.timeMinutes != null &&
-                                          recipe.servings != null)
-                                        const SizedBox(width: 6),
-                                      if (recipe.servings != null)
-                                        _Pill(
-                                          text: '${recipe.servings} servings',
+                                        Container(
+                                          height: 30,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          color: AppColors.backgroundColour,
+                                          child: Text(
+                                            "$_currentServings serving${_currentServings! > 1 ? "s" : ""}",
+                                            style:
+                                                TextStyles.bodyTextBoldAccent,
+                                          ),
                                         ),
-                                    ],
-                                  ),
+                                        GestureDetector(
+                                          onTap: () => handleIncreaseServing(),
+                                          child: Container(
+                                            height: 30,
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.accentColour1,
+                                              borderRadius: BorderRadius.only(
+                                                topRight: Radius.circular(10),
+                                                bottomRight: Radius.circular(
+                                                  10,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Icon(
+                                              Icons.add,
+                                              size: 14,
+                                              color:
+                                                  AppColors.secondaryTextColour,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                 ],
                               ),
                             ),
@@ -241,9 +447,13 @@ class _RecipePageState extends State<RecipePage> {
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: recipe.tags
-                                .map((t) => _TagChip(text: t))
-                                .toList(),
+                            children: [
+                              if (recipe.timeMinutes != null)
+                                _TagChip(text: '${recipe.timeMinutes} min'),
+                              ...recipe.tags
+                                  .map((t) => _TagChip(text: t))
+                                  .toList(),
+                            ],
                           ),
                           const SizedBox(height: 8),
                         ],
@@ -302,7 +512,44 @@ class _RecipePageState extends State<RecipePage> {
                         const SizedBox(height: 16),
 
                         // Ingredients
-                        const Text('Ingredients', style: TextStyles.subheading),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: const Text(
+                                'Ingredients',
+                                style: TextStyles.subheading,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryColour,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.balance,
+                                      size: 14,
+                                      color: AppColors.secondaryTextColour,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Text(
+                                      'Convert',
+                                      style: TextStyles.bodyTextBoldSecondary,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         if (recipe.ingredients.isNotEmpty)
                           Column(
                             children: List.generate(recipe.ingredients.length, (
@@ -311,7 +558,18 @@ class _RecipePageState extends State<RecipePage> {
                               final ingred = recipe.ingredients[i];
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 6),
-                                child: ParsedIngredientPill(ingredient: ingred),
+                                child: ParsedIngredientPill(
+                                  ingredient: ingred,
+                                  scale: _scale,
+                                  showSubOption: true,
+                                  onSub: () => handleSubs(
+                                    i,
+                                    recipe.title,
+                                    "${ingred.quantity} ${ingred.unit} ${ingred.item}",
+                                  ),
+                                  removeSubs: () => handleRemoveSubs(i),
+                                  subs: _subsByIndex[i] ?? const [],
+                                ),
                               );
                             }),
                           ),
@@ -527,23 +785,6 @@ class _RecipePageState extends State<RecipePage> {
   }
 }
 
-class _Pill extends StatelessWidget {
-  final String text;
-  const _Pill({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.accentColour1,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(text, style: TextStyles.smallHeadingSecondary),
-    );
-  }
-}
-
 class _TagChip extends StatelessWidget {
   final String text;
   const _TagChip({required this.text});
@@ -578,7 +819,28 @@ class _InfoRow extends StatelessWidget {
             "$label: ",
             style: TextStyles.inputedText.copyWith(fontWeight: FontWeight.bold),
           ),
-          Expanded(child: Text(value, style: TextStyles.inputedText)),
+          Expanded(
+            child: GestureDetector(
+              onTap: label == "URL"
+                  ? () async {
+                      final uri = Uri.parse(value);
+
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  : null,
+              child: Text(
+                value,
+                style: TextStyles.inputedText.copyWith(
+                  color: label == "URL" ? Colors.blue : null,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ),
         ],
       ),
     );

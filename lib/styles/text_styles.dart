@@ -103,7 +103,7 @@ class TextStyles {
   );
 
   static const bodyTextBoldAccent = TextStyle(
-    fontSize: 14.0,
+    fontSize: 12.0,
     fontWeight: FontWeight.w700,
     color: AppColors.accentColour1,
   );

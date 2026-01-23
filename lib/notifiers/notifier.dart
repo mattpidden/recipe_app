@@ -398,6 +398,26 @@ class Notifier extends ChangeNotifier {
     return recipe;
   }
 
+  Future<void> updateRecipe(Recipe recipeToUpdate) async {
+    final recipeIndex = recipes.indexWhere((r) => r.id == recipeToUpdate.id);
+    if (recipeIndex == -1) return;
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('recipes')
+          .doc(recipeToUpdate.id)
+          .update(recipeToUpdate.toFirestore());
+      recipes.removeAt(recipeIndex);
+      recipes.add(recipeToUpdate);
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> deleteRecipe(String recipeId) async {
     // optimistic local delete
     final recipeIndex = recipes.indexWhere((r) => r.id == recipeId);

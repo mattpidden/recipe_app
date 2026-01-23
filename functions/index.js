@@ -1,6 +1,8 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { logger } = require("firebase-functions");
 const { GoogleGenAI, Type } = require("@google/genai");
+const axios = require("axios");
+const cheerio = require("cheerio");
 
 const PROJECT = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
 const LOCATION = "europe-west2"; // keep consistent with your app + data residency
@@ -102,6 +104,82 @@ function safeJsonParse(text) {
     }
 }
 
+async function callGeminiParser(content) {
+    const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+            title: { type: Type.STRING, nullable: false },
+            description: { type: Type.STRING, nullable: true },
+            timeMinutes: { type: Type.INTEGER, nullable: true },
+            servings: { type: Type.INTEGER, nullable: true },
+            tags: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                nullable: true,
+            },
+            ingredients: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        raw: { type: Type.STRING, nullable: false },
+                        quantity: { type: Type.NUMBER, nullable: true },
+                        unit: { type: Type.STRING, nullable: true },
+                        item: { type: Type.STRING, nullable: true },
+                        notes: { type: Type.STRING, nullable: true },
+                    },
+                    required: ["raw"],
+                },
+                nullable: true,
+            },
+            steps: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                nullable: true,
+            },
+            notes: { type: Type.STRING, nullable: true },
+            pageNumber: { type: Type.INTEGER, nullable: true },
+            sourceAuthor: { type: Type.STRING, nullable: true },
+            sourceTitle: { type: Type.STRING, nullable: true },
+        },
+        required: ["title"],
+    };
+
+    const system = `
+        You convert text from cooking recipes into a strict JSON object for a recipe app.
+
+        Rules:
+        - Output MUST conform to the provided JSON schema (no extra keys).
+        - Prefer correctness over guessing.
+        - If a field is unknown, use null (or [] for arrays if you found none).
+        - Ingredients: keep 'raw' exactly as seen (cleaned), and only fill quantity/unit/item/notes when confident.
+        - Steps: keep as an ordered list of instructions (no numbering needed).
+        - Title should be short and clean.
+        - Suggest a few short tags for the recipe using your knowledge.
+        - If an ingredient is singular, for example 'a teaspoon', use 1 as the quantity.
+        - Every field except 'warnings' and 'confidence' will be user facing - do not include technical jargon, ensure capitalisation is neat and grammatically correct.
+        - Add warnings (array of strings) for anything suspicious (e.g. missing steps, merged columns, OCR noise).
+        - confidence: 0.0 to 1.0 (overall).
+        `.trim();
+
+    const model = "gemini-2.5-pro";
+
+    const resp = await ai.models.generateContent({
+        model,
+        contents: content,
+        config: {
+            systemInstruction: system,
+            temperature: 0,
+            topP: 0,
+            candidateCount: 1,
+            responseMimeType: "application/json",
+            responseSchema,
+        },
+    });
+
+    return resp;
+}
+
 exports.parseRecipeFromOcr = onCall(
     { region: LOCATION, timeoutSeconds: 60, memory: "512MiB" },
     async (req) => {
@@ -117,68 +195,7 @@ exports.parseRecipeFromOcr = onCall(
             );
         }
 
-        const responseSchema = {
-            type: Type.OBJECT,
-            properties: {
-                title: { type: Type.STRING, nullable: false },
-                description: { type: Type.STRING, nullable: true },
-                timeMinutes: { type: Type.INTEGER, nullable: true },
-                servings: { type: Type.INTEGER, nullable: true },
-                tags: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    nullable: true,
-                },
-                ingredients: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            raw: { type: Type.STRING, nullable: false },
-                            quantity: { type: Type.NUMBER, nullable: true },
-                            unit: { type: Type.STRING, nullable: true },
-                            item: { type: Type.STRING, nullable: true },
-                            notes: { type: Type.STRING, nullable: true },
-                        },
-                        required: ["raw"],
-                    },
-                    nullable: true,
-                },
-                steps: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    nullable: true,
-                },
-                notes: { type: Type.STRING, nullable: true },
-                pageNumber: { type: Type.INTEGER, nullable: true },
-                // optional debugging fields so you can show “confidence” UI
-                confidence: { type: Type.NUMBER, nullable: true },
-                warnings: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    nullable: true,
-                },
-            },
-            required: ["title"],
-        };
-
         const ocrText = blocks.map((x) => `[p${x.p} b${x.b}] ${x.text}`).join("\n");
-
-        const system = `
-        You convert OCR from cookbook recipe pages into a strict JSON object for a recipe app.
-
-        Rules:
-        - Output MUST conform to the provided JSON schema (no extra keys).
-        - Prefer correctness over guessing.
-        - If a field is unknown, use null (or [] for arrays if you found none).
-        - Ingredients: keep 'raw' exactly as seen (cleaned), and only fill quantity/unit/item/notes when confident.
-        - Steps: keep as an ordered list of instructions (no numbering needed).
-        - Title should be short and clean.
-        - Every field except 'warnings' and 'confidence' will be user facing - do not include technical jargon, ensure capitalisation is neat and grammatically correct.
-        - Add warnings (array of strings) for anything suspicious (e.g. missing steps, merged columns, OCR noise).
-        - confidence: 0.0 to 1.0 (overall).
-        `.trim();
-
         const userPrompt = `
         OCR blocks (in reading order, may include noise / headers / page numbers):
 
@@ -186,21 +203,7 @@ exports.parseRecipeFromOcr = onCall(
 
         Extract the recipe.`.trim();
 
-        // Use Pro for robustness (best extraction), Flash if you want cheaper later
-        const model = "gemini-2.5-pro";
-
-        const resp = await ai.models.generateContent({
-            model,
-            contents: userPrompt,
-            config: {
-                systemInstruction: system,
-                temperature: 0,
-                topP: 0,
-                candidateCount: 1,
-                responseMimeType: "application/json",
-                responseSchema,
-            },
-        });
+        const resp = await callGeminiParser(userPrompt);
 
         // With responseMimeType JSON, resp.text should be JSON
         const parsed = safeJsonParse(resp.text);
@@ -236,5 +239,179 @@ exports.parseRecipeFromOcr = onCall(
         }
 
         return parsed; // this becomes res.data in Flutter
+    }
+);
+
+async function extractFromBlog(url) {
+    try {
+        // 1. Fetch the HTML with a standard User-Agent to avoid being blocked
+        const response = await axios.get(url, {
+            headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
+            },
+            timeout: 10000, // 10s timeout for safety
+        });
+
+        const $ = cheerio.load(response.data);
+        let structuredRecipe = null;
+
+        // 2. Attempt to find JSON-LD (Schema.org Recipe data)
+        $('script[type="application/ld+json"]').each((_, el) => {
+            const json = safeJsonParse($(el).html());
+            if (!json) return;
+
+            // JSON-LD can be a single object, an array, or a "@graph"
+            const potentialItems = Array.isArray(json) ? json : (json["@graph"] || [json]);
+
+            const found = potentialItems.find(item =>
+                item["@type"] === "Recipe" ||
+                (Array.isArray(item["@type"]) && item["@type"].includes("Recipe"))
+            );
+
+            if (found) {
+                structuredRecipe = found;
+                return false; // Break loop
+            }
+        });
+
+        let inputForGemini = "";
+
+        if (structuredRecipe) {
+            // Option A: We found clean data. Feed it to Gemini to "normalize" to your schema.
+            inputForGemini = `
+                EXTRACTED STRUCTURED DATA:
+                ${JSON.stringify(structuredRecipe)}
+                
+                URL: ${url}
+            `;
+        } else {
+            // Option B: No schema found. Extract title and body text as fallback.
+            const title = $("title").text() || $("h1").first().text();
+            // Remove scripts, styles, and nav to reduce noise for the AI
+            $("script, style, nav, footer, header, noscript").remove();
+            const bodyText = $("body").text().replace(/\s+/g, ' ').trim().substring(0, 15000);
+
+            inputForGemini = `
+                RAW WEBSITE CONTENT (No structured data found):
+                Title: ${title}
+                Content: ${bodyText}
+                
+                URL: ${url}
+            `;
+        }
+
+        // 3. Call your updated Gemini function
+        const geminiResponse = await callGeminiParser(inputForGemini);
+
+        // Extract the actual JSON from the Gemini response object
+        const parsed = safeJsonParse(geminiResponse.text);
+
+        if (!parsed) {
+            throw new Error("Gemini failed to return valid JSON for this URL.");
+        }
+
+        return parsed;
+
+    } catch (err) {
+        logger.error(`Blog extraction failed for ${url}`, err);
+        throw new HttpsError("internal", `Could not extract recipe: ${err.message}`);
+    }
+}
+
+async function extractFromSocialMedia(url) { }
+async function extractFromYoutube(url) { }
+
+exports.recipeFromUrl = onCall({
+    region: LOCATION,
+    timeoutSeconds: 120, // Web scraping can take longer
+    memory: "1GiB"
+}, async (request) => {
+    const urlString = (request.data?.url ?? "").toString().trim();
+    if (!urlString) throw new HttpsError("invalid-argument", "Missing URL");
+
+    try {
+        const url = new URL(urlString);
+        const domain = url.hostname.replace('www.', '');
+
+        // 1. Route based on domain
+        if (domain.includes("instagram.com") || domain.includes("tiktok.com")) {
+            return await extractFromSocialMedia(urlString);
+        } else if (domain.includes("youtube.com") || domain.includes("youtu.be")) {
+            return await extractFromYoutube(urlString);
+        } else {
+            // Default: Traditional Blog/Website
+            return await extractFromBlog(urlString);
+        }
+    } catch (err) {
+        logger.error("Recipe extraction failed", err);
+        throw new HttpsError("internal", err.message);
+    }
+});
+
+
+exports.substituteIngredient = onCall(
+    {
+        region: LOCATION,
+        timeoutSeconds: 15,
+        memory: "256MiB",
+    },
+    async (request) => {
+        const recipe = request.data?.recipe;
+        const ingredient = request.data?.ingredient;
+
+        if (!recipe || !ingredient) {
+            throw new HttpsError(
+                "invalid-argument",
+                "recipe and ingredient are required"
+            );
+        }
+
+        const responseSchema = {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    raw: { type: Type.STRING },
+                    quantity: { type: Type.NUMBER, nullable: true },
+                    unit: { type: Type.STRING, nullable: true },
+                    item: { type: Type.STRING },
+                    notes: { type: Type.STRING, nullable: true },
+                },
+                required: ["raw"],
+            },
+        };
+
+        const model = "gemini-2.5-flash-lite";
+
+        const system = `
+            You are helping substitute ingredients in recipes.
+
+            Rules:
+            - Suggest up to a max of 5 realistic substitutes.
+            - Prefer common household ingredients.
+            - Adjust quantities if needed.
+            - Keep notes short and practical.
+            - Do not include explanations outside the JSON.
+            `;
+
+        const prompt = `
+            Recipe: ${recipe}
+            Ingredient to substitute: ${ingredient}
+            `;
+
+        const resp = await ai.models.generateContent({
+            model,
+            contents: prompt,
+            config: {
+                systemInstruction: system,
+                temperature: 0.1,
+                topP: 0,
+                candidateCount: 1,
+                responseMimeType: "application/json",
+                responseSchema,
+            },
+        });
+
+        return JSON.parse(resp.text);
     }
 );

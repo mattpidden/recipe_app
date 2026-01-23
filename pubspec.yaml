@@ -25,6 +25,7 @@ dependencies:
   purchases_flutter: ^9.10.6
   purchases_ui_flutter: ^9.10.6
   smooth_page_indicator: ^2.0.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

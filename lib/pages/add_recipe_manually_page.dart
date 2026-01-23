@@ -21,6 +21,8 @@ class AddRecipeManuallyPage extends StatefulWidget {
 }
 
 class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
+  final _addFromURL = TextEditingController();
+
   final _title = TextEditingController();
   final _description = TextEditingController();
 
@@ -42,8 +44,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
 
   final _notes = TextEditingController();
 
-  String _sourceType =
-      'My Own Recipe'; // cookbook | url | tiktok | instagram | manual
+  String _sourceType = 'My Own Recipe'; // cookbook | URL | Social Media
   final _sourceUrl = TextEditingController();
   final _sourceAuthor = TextEditingController();
   final _sourceTitle = TextEditingController();
@@ -132,6 +133,50 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     );
   }
 
+  Future<void> _scanFromURL(String url) async {
+    if (_saving || _scanning || _scrapping) return;
+    setState(() => _scrapping = true);
+    try {
+      showFullScreenLoader(context);
+
+      final fn = FirebaseFunctions.instanceFor(
+        region: 'europe-west2',
+      ).httpsCallable('recipeFromUrl');
+
+      final res = await fn.call({'url': url});
+      debugPrint(res.data.toString());
+      final data = Map<String, dynamic>.from(res.data as Map);
+      _applyRecipeDraft(data);
+      _sourceType = 'URL';
+      _sourceUrl.text = url;
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Scan complete - review and save',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
+    } catch (e) {
+      debugPrint(e.toString());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Scan failed - please try again',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
+    } finally {
+      hideFullScreenLoader(context);
+      if (mounted) setState(() => _scrapping = false);
+    }
+  }
+
   Future<void> _scanFromSource(ImageSource source) async {
     if (_saving || _scanning || _scrapping) return;
 
@@ -171,6 +216,8 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       debugPrint(res.data.toString());
       final data = Map<String, dynamic>.from(res.data as Map);
       _applyRecipeDraft(data);
+      // Mark as cookbook source by default
+      _sourceType = 'Cookbook';
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -324,9 +371,6 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       });
 
       _setControllerList(_stepCtrls, stepLines.isEmpty ? [''] : stepLines);
-
-      // Mark as cookbook source by default
-      _sourceType = 'Cookbook';
     });
   }
 
@@ -686,25 +730,37 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: null,
-                            child: Container(
-                              height: 50,
-                              padding: EdgeInsets.all(8),
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: (_saving || _scanning || _scrapping)
-                                    ? Colors.grey
-                                    : AppColors.accentColour1,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'Add recipe from URL',
-                                  style: TextStyles.smallHeadingSecondary,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Input(
+                                  controller: _addFromURL,
+                                  hint: 'Add recipe from URL or social media',
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: (_saving || _scanning || _scrapping)
+                                    ? null
+                                    : () => _scanFromURL(_addFromURL.text),
+                                child: Container(
+                                  padding: EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: (_saving || _scanning || _scrapping)
+                                        ? Colors.grey
+                                        : AppColors.accentColour1,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      'Add',
+                                      style: TextStyles.smallHeadingSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 8),
                           // Images
@@ -1078,6 +1134,10 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                       Expanded(
                                         child: ParsedIngredientPill(
                                           ingredient: ingred,
+                                          showSubOption: false,
+                                          onSub: () async {},
+                                          subs: [],
+                                          removeSubs: () {},
                                         ),
                                       ),
                                       const SizedBox(width: 8),
