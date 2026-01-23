@@ -157,9 +157,8 @@ async function callGeminiParser(content) {
         - Title should be short and clean.
         - Suggest a few short tags for the recipe using your knowledge.
         - If an ingredient is singular, for example 'a teaspoon', use 1 as the quantity.
-        - Every field except 'warnings' and 'confidence' will be user facing - do not include technical jargon, ensure capitalisation is neat and grammatically correct.
-        - Add warnings (array of strings) for anything suspicious (e.g. missing steps, merged columns, OCR noise).
-        - confidence: 0.0 to 1.0 (overall).
+        - Every field will be user facing - do not include technical jargon, ensure capitalisation is neat and grammatically correct.
+        - Add the author of the recipe or chef to sourceAuthor, and the platform (eg tiktok/instagram) or website name (eg BBC Good Food) to sourceTitle.
         `.trim();
 
     const model = "gemini-2.5-pro";
@@ -318,8 +317,168 @@ async function extractFromBlog(url) {
     }
 }
 
-async function extractFromSocialMedia(url) { }
-async function extractFromYoutube(url) { }
+async function extractFromInstagramReels(url) {
+    try {
+        console.log("Extracting recipe from instagram reels");
+        // 1. set up api input json
+        const token = process.env.APIFY_API_KEY;
+        if (!token) throw new Error("Missing APIFY_API_KEY");
+        const api_input = {
+            "includeDownloadedVideo": false,
+            "includeSharesCount": false,
+            "includeTranscript": true,
+            "resultsLimit": 1,
+            "skipPinnedPosts": false,
+            "username": [
+                url
+            ]
+        }
+
+        // 2. call api and wait for response (get api key from .env 'APIFY_API_KEY')
+        const endpoint = `https://api.apify.com/v2/acts/apify~instagram-reel-scraper/run-sync-get-dataset-items?token=${token}`;
+        console.log(`Calling APIFT endpoint`);
+        const response = await axios.post(endpoint, api_input, {
+            headers: { "Content-Type": "application/json" },
+            timeout: 120000,
+        });
+        console.log("typeof response.data:", typeof response.data);
+        console.log("isArray response.data:", Array.isArray(response.data));
+        const items = response.data;
+        console.log(`Got response from api`);
+        if (!Array.isArray(items)) {
+            throw new Error("Apify returned not an array.");
+        }
+        if (items.length === 0) {
+            throw new Error("Apify returned an empty array.");
+        }
+
+        const reel = items[0];
+
+        // 3) Build LLM input from caption/transcript/author
+        const caption = (reel.caption ?? "").toString().trim();
+        const transcript = (reel.transcript ?? "").toString().trim();
+        const author =
+            (reel.ownerFullName ?? reel.ownerUsername ?? "").toString().trim();
+
+        const inputForGemini = `
+            SOURCE: Instagram Reel. If some ingredients or some steps are missing or incomplete, please fill in the gaps yourself, but put a note in the note section saying which parts you filled in. If there is no ingredients and no steps, then please return blank fields.
+            URL: ${url}
+            RECIPE AUTHOR / CHEF: ${author || "Unknown"}
+
+            CAPTION:
+            ${caption || "(none)"}
+
+            TRANSCRIPT:
+            ${transcript || "(none)"}
+            `.trim();
+        console.log(`Calling gemini to fix recipe with input ${inputForGemini}`);
+
+        // 4. Call Gemini function
+        const geminiResponse = await callGeminiParser(inputForGemini);
+
+        // Extract the actual JSON from the Gemini response object
+        const parsed = safeJsonParse(geminiResponse.text);
+
+        if (!parsed) {
+            throw new Error("Gemini failed to return valid JSON for this URL.");
+        }
+
+        return parsed;
+    } catch (err) {
+        logger.error(`Reel extraction failed for ${url}`, err);
+        throw new HttpsError("internal", `Could not extract recipe: ${err.message}`);
+    }
+}
+
+
+async function extractFromTikTok(url) {
+    try {
+        console.log("Extracting recipe from tiktok");
+        // 1. set up api input json
+        const token = process.env.APIFY_API_KEY;
+        if (!token) throw new Error("Missing APIFY_API_KEY");
+        const api_input = {
+            "resultsPerPage": 1,
+            "scrapeRelatedVideos": false,
+            "shouldDownloadCovers": false,
+            "shouldDownloadSlideshowImages": false,
+            "shouldDownloadSubtitles": false,
+            "shouldDownloadVideos": false,
+            "postURLs": [
+                url
+            ]
+        }
+        const transcribe_api_input = {
+            "start_urls": url
+        };
+
+        // 2. call api and wait for response (get api key from .env 'APIFY_API_KEY')
+        const endpoint = `https://api.apify.com/v2/acts/clockworks~tiktok-video-scraper/run-sync-get-dataset-items?token=${token}`;
+        const transcribe_endpoint = `https://api.apify.com/v2/acts/tictechid~anoxvanzi-transcriber/run-sync-get-dataset-items?token=${token}`;
+        console.log(`Calling APIFT endpoints`);
+        const [response, transcribe_response] = await Promise.all([
+            axios.post(endpoint, api_input, {
+                headers: { "Content-Type": "application/json" },
+                timeout: 120000,
+            }),
+            axios.post(transcribe_endpoint, transcribe_api_input, {
+                headers: { "Content-Type": "application/json" },
+                timeout: 120000,
+            }),
+        ]);
+        const items = response.data;
+        const transcribe_items = transcribe_response.data;
+        console.log(`Got response from api`);
+        if (!Array.isArray(items)) {
+            throw new Error("Apify returned not an array.");
+        }
+        if (items.length === 0) {
+            throw new Error("Apify returned an empty array.");
+        }
+        if (!Array.isArray(transcribe_items)) {
+            throw new Error("Apify returned not an transcribe_items.");
+        }
+        if (transcribe_items.length === 0) {
+            throw new Error("Apify returned an empty transcribe_items.");
+        }
+
+        const reel = items[0];
+
+        // 3) Build LLM input from caption/transcript/author
+        const caption = (reel.text ?? "").toString().trim();
+        const transcript = (transcribe_items[0].transcript ?? "").toString().trim();
+        const author =
+            (reel.authorMeta.nickName ?? reel.authorMeta.name ?? "").toString().trim();
+
+        const inputForGemini = `
+            SOURCE: Tiktok. If some ingredients or some steps are missing or incomplete, please fill in the gaps yourself, but put a note in the note section saying which parts you filled in. If there is no ingredients and no steps, then please return blank fields.
+            URL: ${url}
+            RECIPE AUTHOR / CHEF:: ${author || "Unknown"}
+
+            CAPTION:
+            ${caption || "(none)"}
+
+            TRANSCRIPT:
+            ${transcript || "(none)"}
+            `.trim();
+        console.log(`Calling gemini to fix recipe with input ${inputForGemini}`);
+
+        // 4. Call Gemini function
+        const geminiResponse = await callGeminiParser(inputForGemini);
+
+        // Extract the actual JSON from the Gemini response object
+        const parsed = safeJsonParse(geminiResponse.text);
+
+        if (!parsed) {
+            throw new Error("Gemini failed to return valid JSON for this URL.");
+        }
+
+        return parsed;
+    } catch (err) {
+        logger.error(`Reel extraction failed for ${url}`, err);
+        throw new HttpsError("internal", `Could not extract recipe: ${err.message}`);
+    }
+}
 
 exports.recipeFromUrl = onCall({
     region: LOCATION,
@@ -327,18 +486,23 @@ exports.recipeFromUrl = onCall({
     memory: "1GiB"
 }, async (request) => {
     const urlString = (request.data?.url ?? "").toString().trim();
+    console.log("Extracting recipe from url");
     if (!urlString) throw new HttpsError("invalid-argument", "Missing URL");
 
     try {
         const url = new URL(urlString);
         const domain = url.hostname.replace('www.', '');
+        console.log(`Extracting recipe from domain ${domain}`);
 
         // 1. Route based on domain
-        if (domain.includes("instagram.com") || domain.includes("tiktok.com")) {
-            return await extractFromSocialMedia(urlString);
-        } else if (domain.includes("youtube.com") || domain.includes("youtu.be")) {
-            return await extractFromYoutube(urlString);
+        if (domain.includes("instagram")) {
+            console.log("From instagram");
+            return await extractFromInstagramReels(urlString);
+        } else if (domain.includes("tiktok")) {
+            console.log("From tiktok");
+            return await extractFromTikTok(urlString);
         } else {
+            console.log("From website");
             // Default: Traditional Blog/Website
             return await extractFromBlog(urlString);
         }

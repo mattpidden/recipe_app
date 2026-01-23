@@ -29,6 +29,13 @@ class MainApp extends StatelessWidget {
       child: MaterialApp(
         title: "Made",
         debugShowCheckedModeBanner: false,
+        builder: (context, child) {
+          final mq = MediaQuery.of(context);
+          return MediaQuery(
+            data: mq.copyWith(textScaler: const TextScaler.linear(1.0)),
+            child: child!,
+          );
+        },
         theme: ThemeData(
           useMaterial3: true,
 

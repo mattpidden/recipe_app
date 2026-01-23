@@ -47,3 +47,4 @@ app.*.map.json
 # Firebase related
 /lib/firebase_options.dart
 .env
+/functions/.env

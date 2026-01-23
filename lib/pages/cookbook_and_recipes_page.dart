@@ -54,6 +54,7 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
+            bottom: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
