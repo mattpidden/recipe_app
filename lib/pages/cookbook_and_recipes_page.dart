@@ -322,7 +322,7 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                             context,
                                             MaterialPageRoute(
                                               builder: (_) =>
-                                                  const AddRecipeManuallyPage(),
+                                                  AddRecipeManuallyPage(),
                                             ),
                                           );
                                         }
@@ -372,7 +372,7 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => const AddRecipeManuallyPage(),
+                                  builder: (_) => AddRecipeManuallyPage(),
                                 ),
                               );
                             },
@@ -396,7 +396,7 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                               ),
                             ),
                           ),
-                        const SizedBox(height: 58),
+                        const SizedBox(height: 16 + 70 + 16),
                       ],
                     ),
                   ),

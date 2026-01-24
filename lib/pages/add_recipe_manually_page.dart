@@ -4,17 +4,29 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/ingredient.dart';
+import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/components/inputs.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
+import 'package:path/path.dart' as p;
 
 class AddRecipeManuallyPage extends StatefulWidget {
-  const AddRecipeManuallyPage({super.key});
+  final bool openCamera;
+  final bool editingRecipe;
+  final Recipe? oldRecipe;
+  const AddRecipeManuallyPage({
+    super.key,
+    this.openCamera = false,
+    this.editingRecipe = false,
+    this.oldRecipe,
+  });
 
   @override
   State<AddRecipeManuallyPage> createState() => _AddRecipeManuallyPageState();
@@ -59,6 +71,33 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
   bool _saving = false;
   bool _scanning = false;
   bool _scrapping = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openCamera) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scanFromSource(ImageSource.camera);
+      });
+    }
+    if (widget.editingRecipe && widget.oldRecipe != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        _applyRecipeDraft(widget.oldRecipe!.toFirestore());
+        _sourceUrl.text = widget.oldRecipe?.sourceUrl ?? '';
+        _sourceType = widget.oldRecipe?.sourceType ?? "My Own Recipe";
+        _selectedCookbookId = widget.oldRecipe?.cookbookId;
+        final urls = widget.oldRecipe?.imageUrls ?? const <String>[];
+        final xfiles = await xfilesFromUrls(urls);
+        _images.addAll(xfiles);
+        setState(() {});
+
+        // add images
+        // add source too
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -302,6 +341,28 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     }
   }
 
+  Future<List<XFile>> xfilesFromUrls(List<String> urls) async {
+    final dir = await getTemporaryDirectory();
+
+    final files = await Future.wait(
+      urls.map((url) async {
+        final res = await http.get(Uri.parse(url));
+        if (res.statusCode != 200) {
+          throw Exception('Failed to download $url (${res.statusCode})');
+        }
+
+        final ext = p.extension(Uri.parse(url).path);
+        final filename = '${DateTime.now().microsecondsSinceEpoch}$ext';
+        final file = File(p.join(dir.path, filename));
+
+        await file.writeAsBytes(res.bodyBytes);
+        return XFile(file.path);
+      }),
+    );
+
+    return files;
+  }
+
   void _applyRecipeDraft(Map<String, dynamic> data) {
     String? s(dynamic v) =>
         (v is String && v.trim().isNotEmpty) ? v.trim() : null;
@@ -313,6 +374,8 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     final timeMinutes = data['timeMinutes'];
     final servings = data['servings'];
     final pageNum = data['pageNumber'];
+    final sourceAuthor = data['sourceAuthor'];
+    final sourceTitle = data['sourceTitle'];
 
     final notifier = context.read<Notifier>();
 
@@ -351,6 +414,8 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
           : '';
       _servings.text = (servings is num) ? servings.toInt().toString() : '';
       _pageNumber.text = (pageNum is num) ? pageNum.toInt().toString() : '';
+      _sourceAuthor.text = sourceAuthor ?? '';
+      _sourceTitle.text = sourceTitle ?? '';
 
       _tags
         ..clear()
@@ -623,6 +688,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
 
       await notifier.addRecipe(
         title: title,
+        id: widget.editingRecipe ? widget.oldRecipe!.id : null,
         description: _description.text.trim().isEmpty
             ? null
             : _description.text.trim(),
@@ -645,6 +711,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
         cookbookId: _selectedCookbookId,
         pageNumber: int.tryParse(_pageNumber.text),
         notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+        updateExisting: widget.editingRecipe,
       );
 
       if (!mounted) return;
@@ -691,14 +758,47 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Add Recipe',
+                          widget.editingRecipe ? "Edit Recipe" : 'Add Recipe',
                           style: TextStyles.pageTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      GestureDetector(
+                        onTap: (_saving || _scanning || _scrapping)
+                            ? null
+                            : _save,
+                        child: _saving
+                            ? const SizedBox(
+                                height: 15,
+                                width: 15,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primaryColour,
+                                ),
+                              )
+                            : Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 3,
+                                  horizontal: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (_saving || _scanning || _scrapping)
+                                      ? Colors.grey
+                                      : AppColors.primaryColour,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Save',
+                                    style: TextStyles.smallHeadingSecondary,
+                                  ),
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: 16),
                     ],
                   ),
                   Expanded(
@@ -707,62 +807,65 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          GestureDetector(
-                            onTap: (_saving || _scanning || _scrapping)
-                                ? null
-                                : _scanRecipeFromCookbook,
-                            child: Container(
-                              height: 50,
-                              padding: EdgeInsets.all(8),
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: (_saving || _scanning || _scrapping)
-                                    ? Colors.grey
-                                    : AppColors.accentColour1,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'Scan recipe from cookbook',
-                                  style: TextStyles.smallHeadingSecondary,
+                          if (!widget.editingRecipe)
+                            GestureDetector(
+                              onTap: (_saving || _scanning || _scrapping)
+                                  ? null
+                                  : _scanRecipeFromCookbook,
+                              child: Container(
+                                height: 50,
+                                padding: EdgeInsets.all(8),
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: (_saving || _scanning || _scrapping)
+                                      ? Colors.grey
+                                      : AppColors.accentColour1,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'Scan recipe from cookbook',
+                                    style: TextStyles.smallHeadingSecondary,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Input(
-                                  controller: _addFromURL,
-                                  hint: 'Add recipe from URL or social media',
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: (_saving || _scanning || _scrapping)
-                                    ? null
-                                    : () => _scanFromURL(_addFromURL.text),
-                                child: Container(
-                                  padding: EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: (_saving || _scanning || _scrapping)
-                                        ? Colors.grey
-                                        : AppColors.accentColour1,
-                                    borderRadius: BorderRadius.circular(10),
+                          if (!widget.editingRecipe) const SizedBox(height: 8),
+                          if (!widget.editingRecipe)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Input(
+                                    controller: _addFromURL,
+                                    hint: 'Add recipe from URL or social media',
                                   ),
-                                  child: Center(
-                                    child: Text(
-                                      'Add',
-                                      style: TextStyles.smallHeadingSecondary,
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: (_saving || _scanning || _scrapping)
+                                      ? null
+                                      : () => _scanFromURL(_addFromURL.text),
+                                  child: Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (_saving || _scanning || _scrapping)
+                                          ? Colors.grey
+                                          : AppColors.accentColour1,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        'Add',
+                                        style: TextStyles.smallHeadingSecondary,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
+                              ],
+                            ),
+                          if (!widget.editingRecipe) const SizedBox(height: 8),
                           // Images
                           GestureDetector(
                             onTap: _saving ? null : _showImagesSheet,

@@ -2,11 +2,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:recipe_app/pages/add_cookbook_manually_page.dart';
+import 'package:recipe_app/pages/add_recipe_manually_page.dart';
 import 'package:recipe_app/pages/auth_error_page.dart';
 import 'package:recipe_app/pages/cookbook_and_recipes_page.dart';
 import 'package:recipe_app/pages/home_page.dart';
 import 'package:recipe_app/pages/plan_page.dart';
-import 'package:recipe_app/pages/settings_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 
 class MainPage extends StatefulWidget {
@@ -18,13 +19,12 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 1;
+  bool _fabOpen = false;
 
-  final _pages = const [
-    HomePage(),
-    CookbookAndRecipePage(),
-    PlanPage(),
-    SettingsPage(),
-  ];
+  void _toggleFab() => setState(() => _fabOpen = !_fabOpen);
+  void _closeFab() => setState(() => _fabOpen = false);
+
+  final _pages = const [HomePage(), CookbookAndRecipePage(), PlanPage()];
 
   void presentPaywallIfNeeded() async {
     final paywallResult = await RevenueCatUI.presentPaywallIfNeeded("pro");
@@ -57,23 +57,46 @@ class _MainPageState extends State<MainPage> {
             body: Stack(
               children: [
                 IndexedStack(index: _selectedIndex, children: _pages),
+
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: !_fabOpen,
+                    child: GestureDetector(
+                      onTap: _closeFab,
+                      child: AnimatedContainer(
+                        duration: Duration(milliseconds: 150),
+                        color: AppColors.primaryTextColour.withAlpha(
+                          _fabOpen ? 100 : 0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
                 Positioned(
                   bottom: 16,
                   left: 16,
-                  right: 16,
+                  right: 98,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       vertical: 10,
                       horizontal: 20,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(245),
+                      color: Colors.white,
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
+                        topLeft: Radius.circular(15),
+                        topRight: Radius.circular(15),
                         bottomLeft: Radius.circular(40),
-                        bottomRight: Radius.circular(40),
+                        bottomRight: Radius.circular(15),
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryTextColour.withAlpha(50),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ],
                     ),
                     child: GNav(
                       gap: 8,
@@ -88,11 +111,104 @@ class _MainPageState extends State<MainPage> {
                       tabBackgroundColor: AppColors.primaryColour,
                       tabs: const [
                         GButton(icon: Icons.home, text: 'Home'),
-                        GButton(icon: Icons.menu_book, text: 'Cookbooks'),
+                        GButton(icon: Icons.menu_book, text: 'Recipes'),
                         GButton(icon: Icons.calendar_today, text: 'Plan'),
-                        GButton(icon: Icons.person, text: 'Profile'),
                       ],
                     ),
+                  ),
+                ),
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      _FabAction(
+                        visible: _fabOpen,
+                        index: 0,
+                        label: 'Add Cookbook',
+                        icon: Icons.menu_book_outlined,
+                        onTap: () {
+                          _closeFab();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AddCookbookManuallyPage(),
+                            ),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 10),
+                      _FabAction(
+                        visible: _fabOpen,
+                        index: 1,
+                        label: 'Add Recipe',
+                        icon: Icons.receipt_long,
+                        onTap: () {
+                          _closeFab();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AddRecipeManuallyPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      _FabAction(
+                        visible: _fabOpen,
+                        index: 2,
+                        label: 'Add Recipe From Photo',
+                        icon: Icons.photo_camera,
+                        onTap: () {
+                          _closeFab();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  AddRecipeManuallyPage(openCamera: true),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // main button styled like navbar
+                      GestureDetector(
+                        onTap: _toggleFab,
+                        child: Container(
+                          height: 70,
+                          width: 70,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryColour,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(15),
+                              topRight: Radius.circular(15),
+                              bottomLeft: Radius.circular(15),
+                              bottomRight: Radius.circular(40),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryTextColour.withAlpha(
+                                  75,
+                                ),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: AnimatedRotation(
+                              turns: _fabOpen ? 0.125 : 0.0, // 45 degrees
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOut,
+                              child: const Icon(Icons.add, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -103,6 +219,91 @@ class _MainPageState extends State<MainPage> {
           return const AuthErrorPage();
         }
       },
+    );
+  }
+}
+
+class _FabAction extends StatelessWidget {
+  final bool visible;
+  final int index;
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _FabAction({
+    required this.visible,
+    required this.index,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = visible ? 1.0 : 0.0;
+
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedOpacity(
+        opacity: t,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        child: AnimatedSlide(
+          offset: visible ? Offset.zero : const Offset(0, 0.2),
+          duration: Duration(milliseconds: 200 + index * 40),
+          curve: Curves.easeOut,
+          child: GestureDetector(
+            onTap: onTap,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.backgroundColour.withAlpha(50),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: AppColors.primaryColour,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Container(
+                  height: 54,
+                  width: 54,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(100),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.backgroundColour.withAlpha(50),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: AppColors.primaryColour),
+                ),
+                const SizedBox(width: 7),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -74,7 +74,7 @@ class _RecipesListPageState extends State<RecipesListPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const AddRecipeManuallyPage(),
+                        builder: (_) => AddRecipeManuallyPage(),
                       ),
                     );
                   },

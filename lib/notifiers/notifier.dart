@@ -318,6 +318,7 @@ class Notifier extends ChangeNotifier {
 
   Future<Recipe?> addRecipe({
     required String title,
+    String? id,
     String? description,
     List<String> imageUrls = const [],
     List<Ingredient> ingredients = const [],
@@ -332,6 +333,7 @@ class Notifier extends ChangeNotifier {
     String? cookbookId,
     int? pageNumber,
     String? notes,
+    bool updateExisting = false,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -364,7 +366,7 @@ class Notifier extends ChangeNotifier {
         .doc();
 
     final recipe = Recipe.create(
-      id: ref.id,
+      id: updateExisting ? id! : ref.id,
       title: cleanTitle,
       description: (description?.trim().isEmpty ?? true)
           ? null
@@ -389,6 +391,12 @@ class Notifier extends ChangeNotifier {
       pageNumber: pageNumber,
       notes: (notes?.trim().isEmpty ?? true) ? null : notes!.trim(),
     );
+
+    if (updateExisting) {
+      await ref.delete();
+      await updateRecipe(recipe);
+      return recipe;
+    }
 
     await ref.set(recipe.toFirestore());
 

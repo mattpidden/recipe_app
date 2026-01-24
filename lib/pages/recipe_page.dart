@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
+import 'package:recipe_app/pages/add_recipe_manually_page.dart';
 import 'package:recipe_app/pages/cookbook_page.dart';
 import 'package:recipe_app/pages/cooking_page.dart';
 import 'package:recipe_app/styles/colours.dart';
@@ -151,6 +152,23 @@ class _RecipePageState extends State<RecipePage> {
                         style: TextStyles.pageTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AddRecipeManuallyPage(
+                              editingRecipe: true,
+                              oldRecipe: recipe,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: Icon(
+                        Icons.edit_note,
+                        color: AppColors.primaryTextColour,
                       ),
                     ),
                   ],
