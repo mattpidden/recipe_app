@@ -483,7 +483,8 @@ class _RecipePageState extends State<RecipePage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => const CookingPage(),
+                                      builder: (_) =>
+                                          CookingModePage(recipeId: recipe.id),
                                     ),
                                   );
                                 },
