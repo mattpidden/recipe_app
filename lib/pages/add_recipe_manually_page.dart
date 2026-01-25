@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -51,6 +52,10 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
 
   bool _ingredientParsing = false;
   String? _ingredientError;
+  Timer? _loaderTimer;
+  final ValueNotifier<String> _loadingText = ValueNotifier(
+    "Processing recipe...",
+  );
 
   final List<TextEditingController> _stepCtrls = [TextEditingController()];
 
@@ -109,6 +114,8 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     _tagsInput.dispose();
     _tagFocus.dispose();
     _ingredientInput.dispose();
+    _loaderTimer?.cancel();
+    _loadingText.dispose();
 
     for (final c in _stepCtrls) {
       c.dispose();
@@ -176,6 +183,12 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     if (_saving || _scanning || _scrapping) return;
     setState(() => _scrapping = true);
     try {
+      final isVideo =
+          url.contains("tiktok.com") ||
+          url.contains("youtube.com") ||
+          url.contains("facebook.com") ||
+          url.contains("instagram.com");
+      _startLoaderMessages(isVideo: isVideo);
       showFullScreenLoader(context);
 
       final fn = FirebaseFunctions.instanceFor(
@@ -212,6 +225,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       );
     } finally {
       hideFullScreenLoader(context);
+      _stopLoaderMessages();
       if (mounted) setState(() => _scrapping = false);
     }
   }
@@ -241,6 +255,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     setState(() => _scanning = true);
 
     try {
+      _startLoaderMessages(isVideo: false);
       showFullScreenLoader(context);
       final ocrPayload = await _runOcr(files);
 
@@ -282,6 +297,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       );
     } finally {
       hideFullScreenLoader(context);
+      _stopLoaderMessages();
       if (mounted) setState(() => _scanning = false);
     }
   }
@@ -533,7 +549,39 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     );
   }
 
-  void showFullScreenLoader(BuildContext context, {String? message}) {
+  void _startLoaderMessages({required bool isVideo}) {
+    _loaderTimer?.cancel();
+
+    final msgs = <String>[
+      isVideo ? "Watching video..." : "Reading recipe...",
+      "Finding ingredients...",
+      "Writing the steps...",
+      "Seasoning for taste...",
+      "Consulting Chef Bernath...",
+      "Almost there...",
+      "Final touches...",
+    ];
+
+    var i = 0;
+    _loadingText.value = msgs[i];
+
+    _loaderTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      i = (i + 1) % msgs.length;
+      _loadingText.value = msgs[i];
+    });
+  }
+
+  void _stopLoaderMessages() {
+    _loaderTimer?.cancel();
+    _loaderTimer = null;
+    _loadingText.value = "Processing recipe...";
+  }
+
+  void showFullScreenLoader(
+    BuildContext context, {
+    String? message,
+    bool video = false,
+  }) {
     showGeneralDialog(
       context: context,
       barrierDismissible: false,
@@ -553,12 +601,15 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                     color: AppColors.secondaryTextColour,
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    message ?? 'Processing recipe...',
-                    style: TextStyles.subheading.copyWith(
-                      color: AppColors.secondaryTextColour,
+                  ValueListenableBuilder<String>(
+                    valueListenable: _loadingText,
+                    builder: (_, text, __) => Text(
+                      text,
+                      style: TextStyles.subheading.copyWith(
+                        color: AppColors.secondaryTextColour,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                   Text(
                     message ?? 'Please do not leave this page',
