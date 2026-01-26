@@ -4,11 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:recipe_app/classes/cookbook.dart';
 import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/classes/recipe.dart';
+import 'package:recipe_app/classes/unit_value.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Notifier extends ChangeNotifier {
   final _auth = FirebaseAuth.instance;
   final _db = FirebaseFirestore.instance;
-
+  UnitSystem _unitSystem = UnitSystem.original;
+  UnitSystem get unitSystem => _unitSystem;
+  static const _kUnitSystemKey = 'unitSystemPreference';
+  bool isLoading = false;
   List<Recipe> recipes = [];
   List<Cookbook> cookbooks = [];
   List<String> partnerCodes = [];
@@ -201,9 +206,32 @@ class Notifier extends ChangeNotifier {
     'Filling',
   ];
 
-  bool isLoading = false;
+  void updateUnitSystem(UnitSystem newPreference) async {
+    _unitSystem = newPreference;
+    notifyListeners();
+    await _saveUnitSystemPreference(newPreference);
+  }
+
+  Future<void> _loadUnitSystemPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_kUnitSystemKey);
+
+    if (saved == null) return;
+
+    final match = UnitSystem.values.where((e) => e.name == saved);
+    if (match.isNotEmpty) {
+      _unitSystem = match.first;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _saveUnitSystemPreference(UnitSystem value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kUnitSystemKey, value.name);
+  }
 
   Notifier() {
+    _loadUnitSystemPreference();
     _auth.authStateChanges().listen((user) {
       if (user != null) {
         refresh();

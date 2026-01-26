@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
@@ -9,6 +11,7 @@ import 'package:recipe_app/pages/cookbook_and_recipes_page.dart';
 import 'package:recipe_app/pages/home_page.dart';
 import 'package:recipe_app/pages/plan_page.dart';
 import 'package:recipe_app/styles/colours.dart';
+import 'package:recipe_app/styles/text_styles.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -58,21 +61,6 @@ class _MainPageState extends State<MainPage> {
               children: [
                 IndexedStack(index: _selectedIndex, children: _pages),
 
-                Positioned.fill(
-                  child: IgnorePointer(
-                    ignoring: !_fabOpen,
-                    child: GestureDetector(
-                      onTap: _closeFab,
-                      child: AnimatedContainer(
-                        duration: Duration(milliseconds: 150),
-                        color: AppColors.primaryTextColour.withAlpha(
-                          _fabOpen ? 100 : 0,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
                 Positioned(
                   bottom: 16,
                   left: 16,
@@ -92,7 +80,7 @@ class _MainPageState extends State<MainPage> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryTextColour.withAlpha(50),
+                          color: AppColors.primaryTextColour.withAlpha(30),
                           blurRadius: 10,
                           spreadRadius: 1,
                         ),
@@ -117,6 +105,29 @@ class _MainPageState extends State<MainPage> {
                     ),
                   ),
                 ),
+
+                Positioned.fill(
+                  child: IgnorePointer(
+                    ignoring: !_fabOpen,
+                    child: GestureDetector(
+                      onTap: _closeFab,
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 100),
+                        opacity: _fabOpen ? 1 : 0,
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(
+                            sigmaX: _fabOpen ? 20 : 0,
+                            sigmaY: _fabOpen ? 20 : 0,
+                          ),
+                          child: Container(
+                            color: Colors.grey.shade900.withAlpha(150),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
                 Positioned(
                   right: 16,
                   bottom: 16,
@@ -172,7 +183,7 @@ class _MainPageState extends State<MainPage> {
                           );
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
 
                       // main button styled like navbar
                       GestureDetector(
@@ -181,7 +192,7 @@ class _MainPageState extends State<MainPage> {
                           height: 70,
                           width: 70,
                           decoration: BoxDecoration(
-                            color: AppColors.primaryColour,
+                            color: _fabOpen ? null : AppColors.primaryColour,
                             borderRadius: BorderRadius.only(
                               topLeft: Radius.circular(15),
                               topRight: Radius.circular(15),
@@ -191,7 +202,7 @@ class _MainPageState extends State<MainPage> {
                             boxShadow: [
                               BoxShadow(
                                 color: AppColors.primaryTextColour.withAlpha(
-                                  75,
+                                  30,
                                 ),
                                 blurRadius: 10,
                                 spreadRadius: 1,
@@ -203,7 +214,11 @@ class _MainPageState extends State<MainPage> {
                               turns: _fabOpen ? 0.125 : 0.0, // 45 degrees
                               duration: const Duration(milliseconds: 180),
                               curve: Curves.easeOut,
-                              child: const Icon(Icons.add, color: Colors.white),
+                              child: Icon(
+                                Icons.add,
+                                size: _fabOpen ? 35 : 25,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
@@ -262,43 +277,23 @@ class _FabAction extends StatelessWidget {
                     horizontal: 12,
                     vertical: 10,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.backgroundColour.withAlpha(50),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
+
                   child: Text(
                     label,
-                    style: TextStyle(
-                      color: AppColors.primaryColour,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyles.subheading.copyWith(color: Colors.white),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Container(
-                  height: 54,
-                  width: 54,
+                  height: 50,
+                  width: 50,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(100),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.backgroundColour.withAlpha(50),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                      ),
-                    ],
                   ),
                   child: Icon(icon, color: AppColors.primaryColour),
                 ),
-                const SizedBox(width: 7),
+                const SizedBox(width: 9),
               ],
             ),
           ),

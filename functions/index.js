@@ -551,10 +551,10 @@ exports.substituteIngredient = onCall(
             You are helping substitute ingredients in recipes.
 
             Rules:
-            - Suggest up to a max of 5 realistic substitutes.
+            - Suggest up to a maximum of 4 (but can be less) realistic substitutes.
             - Prefer common household ingredients.
             - Adjust quantities if needed.
-            - Keep notes short and practical.
+            - Include short notes if substitute requires a different method, will change recipe taste/texture/consistency, or anything important to note etc.
             - Do not include explanations outside the JSON.
             `;
 

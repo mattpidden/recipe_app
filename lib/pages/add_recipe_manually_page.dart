@@ -15,6 +15,7 @@ import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/components/inputs.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
+import 'package:recipe_app/pages/recipe_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 import 'package:path/path.dart' as p;
@@ -84,7 +85,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     if (widget.openCamera) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _scanFromSource(ImageSource.camera);
+        _scanRecipeFromCookbook();
       });
     }
     if (widget.editingRecipe && widget.oldRecipe != null) {
@@ -738,7 +739,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
           ? <String>[]
           : await _uploadImagesAndGetUrls(_images);
 
-      await notifier.addRecipe(
+      final savedRecipe = await notifier.addRecipe(
         title: title,
         id: widget.editingRecipe ? widget.oldRecipe!.id : null,
         description: _description.text.trim().isEmpty
@@ -767,7 +768,10 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context);
+      if (savedRecipe == null) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => RecipePage(id: savedRecipe.id)),
+      );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

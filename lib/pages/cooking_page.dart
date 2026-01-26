@@ -24,12 +24,11 @@ class _CookingModePageState extends State<CookingModePage> {
   final double _scale = 1.0;
   List<Ingredient> subs = [];
   final Map<String, List<Ingredient>> _subsByKey = {};
-  UnitSystem _unitSystem = UnitSystem.original;
 
-  Ingredient _displayIngredient(Ingredient base) {
+  Ingredient _displayIngredient(Ingredient base, UnitSystem unitSystem) {
     final qScaled = (base.quantity == null) ? null : base.quantity! * _scale;
 
-    if (_unitSystem == UnitSystem.original) {
+    if (unitSystem == UnitSystem.original) {
       return Ingredient(
         raw: base.raw,
         quantity: qScaled,
@@ -39,11 +38,12 @@ class _CookingModePageState extends State<CookingModePage> {
       );
     }
 
-    final target = _unitSystem == UnitSystem.metric
-        ? UnitSystem.metric
-        : UnitSystem.imperial;
-
-    final converted = UnitConverter.convert(qScaled, base.unit, target);
+    final converted = UnitConverter.convert(
+      qScaled,
+      base.unit,
+      unitSystem,
+      ingredient: base.item,
+    );
 
     return Ingredient(
       raw: base.raw, // keep original raw as “source of truth”
@@ -54,14 +54,16 @@ class _CookingModePageState extends State<CookingModePage> {
     );
   }
 
-  String get _viewModeLabel {
-    switch (_unitSystem) {
+  String viewModeLabel(UnitSystem unitSystem) {
+    switch (unitSystem) {
       case UnitSystem.original:
         return "Original";
       case UnitSystem.metric:
         return "Metric";
-      case UnitSystem.imperial:
-        return "Imperial";
+      case UnitSystem.imperial_cups:
+        return "Imperial (cups)";
+      case UnitSystem.imperial_ozs:
+        return "Imperial (ozs)";
     }
   }
 
@@ -306,7 +308,8 @@ class _CookingModePageState extends State<CookingModePage> {
                                                     UnitSystem mode,
                                                   ) {
                                                     final selected =
-                                                        _unitSystem == mode;
+                                                        notifier.unitSystem ==
+                                                        mode;
                                                     return ListTile(
                                                       title: Text(
                                                         label,
@@ -322,10 +325,10 @@ class _CookingModePageState extends State<CookingModePage> {
                                                           : null,
                                                       onTap: () {
                                                         Navigator.pop(context);
-                                                        setState(
-                                                          () => _unitSystem =
+                                                        notifier
+                                                            .updateUnitSystem(
                                                               mode,
-                                                        );
+                                                            );
                                                       },
                                                     );
                                                   }
@@ -345,12 +348,18 @@ class _CookingModePageState extends State<CookingModePage> {
                                                             UnitSystem.original,
                                                           ),
                                                           option(
-                                                            "Metric",
+                                                            "Metric (grams and ml)",
                                                             UnitSystem.metric,
                                                           ),
                                                           option(
-                                                            "Imperial",
-                                                            UnitSystem.imperial,
+                                                            "Imperial (cups)",
+                                                            UnitSystem
+                                                                .imperial_cups,
+                                                          ),
+                                                          option(
+                                                            "Imperial (ozs)",
+                                                            UnitSystem
+                                                                .imperial_ozs,
                                                           ),
                                                         ],
                                                       ),
@@ -380,7 +389,7 @@ class _CookingModePageState extends State<CookingModePage> {
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    'Convert ($_viewModeLabel)',
+                                                    'Convert (${viewModeLabel(notifier.unitSystem)})',
                                                     style: TextStyles
                                                         .bodyTextBoldSecondary,
                                                   ),
@@ -400,6 +409,7 @@ class _CookingModePageState extends State<CookingModePage> {
                                             final displayIngred =
                                                 _displayIngredient(
                                                   stepIngredients[ingredIndex],
+                                                  notifier.unitSystem,
                                                 );
                                             final subKey =
                                                 '$i|${ingred.raw.toLowerCase()}';
@@ -423,7 +433,7 @@ class _CookingModePageState extends State<CookingModePage> {
                                                     _subsByKey[subKey] ??
                                                     const [],
                                                 scale: _scale,
-                                                unitSystem: _unitSystem,
+                                                unitSystem: notifier.unitSystem,
                                               ),
                                             );
                                           },

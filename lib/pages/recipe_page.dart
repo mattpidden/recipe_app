@@ -34,12 +34,11 @@ class _RecipePageState extends State<RecipePage> {
   double _scale = 1.0;
   List<Ingredient> subs = [];
   final Map<int, List<Ingredient>> _subsByIndex = {};
-  UnitSystem _unitSystem = UnitSystem.original;
 
-  Ingredient _displayIngredient(Ingredient base) {
+  Ingredient _displayIngredient(Ingredient base, UnitSystem unitSystem) {
     final qScaled = (base.quantity == null) ? null : base.quantity! * _scale;
 
-    if (_unitSystem == UnitSystem.original) {
+    if (unitSystem == UnitSystem.original) {
       return Ingredient(
         raw: base.raw,
         quantity: qScaled,
@@ -49,11 +48,12 @@ class _RecipePageState extends State<RecipePage> {
       );
     }
 
-    final target = _unitSystem == UnitSystem.metric
-        ? UnitSystem.metric
-        : UnitSystem.imperial;
-
-    final converted = UnitConverter.convert(qScaled, base.unit, target);
+    final converted = UnitConverter.convert(
+      qScaled,
+      base.unit,
+      unitSystem,
+      ingredient: base.item,
+    );
 
     return Ingredient(
       raw: base.raw, // keep original raw as “source of truth”
@@ -64,14 +64,16 @@ class _RecipePageState extends State<RecipePage> {
     );
   }
 
-  String get _viewModeLabel {
-    switch (_unitSystem) {
+  String viewModeLabel(UnitSystem unitSystem) {
+    switch (unitSystem) {
       case UnitSystem.original:
         return "Original";
       case UnitSystem.metric:
         return "Metric";
-      case UnitSystem.imperial:
-        return "Imperial";
+      case UnitSystem.imperial_cups:
+        return "Imperial (cups)";
+      case UnitSystem.imperial_ozs:
+        return "Imperial (ozs)";
     }
   }
 
@@ -597,7 +599,8 @@ class _RecipePageState extends State<RecipePage> {
                                       String label,
                                       UnitSystem mode,
                                     ) {
-                                      final selected = _unitSystem == mode;
+                                      final selected =
+                                          notifier.unitSystem == mode;
                                       return ListTile(
                                         title: Text(
                                           label,
@@ -612,7 +615,7 @@ class _RecipePageState extends State<RecipePage> {
                                             : null,
                                         onTap: () {
                                           Navigator.pop(context);
-                                          setState(() => _unitSystem = mode);
+                                          notifier.updateUnitSystem(mode);
                                         },
                                       );
                                     }
@@ -627,10 +630,17 @@ class _RecipePageState extends State<RecipePage> {
                                               "Original",
                                               UnitSystem.original,
                                             ),
-                                            option("Metric", UnitSystem.metric),
                                             option(
-                                              "Imperial",
-                                              UnitSystem.imperial,
+                                              "Metric (grams and ml)",
+                                              UnitSystem.metric,
+                                            ),
+                                            option(
+                                              "Imperial (cups)",
+                                              UnitSystem.imperial_cups,
+                                            ),
+                                            option(
+                                              "Imperial (ozs)",
+                                              UnitSystem.imperial_ozs,
                                             ),
                                           ],
                                         ),
@@ -657,7 +667,7 @@ class _RecipePageState extends State<RecipePage> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Convert ($_viewModeLabel)',
+                                      'Convert (${viewModeLabel(notifier.unitSystem)})',
                                       style: TextStyles.bodyTextBoldSecondary,
                                     ),
                                   ],
@@ -674,6 +684,7 @@ class _RecipePageState extends State<RecipePage> {
                               final ingred = recipe.ingredients[i];
                               final displayIngred = _displayIngredient(
                                 recipe.ingredients[i],
+                                notifier.unitSystem,
                               );
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 6),
@@ -688,7 +699,7 @@ class _RecipePageState extends State<RecipePage> {
                                   removeSubs: () => handleRemoveSubs(i),
                                   subs: _subsByIndex[i] ?? const [],
                                   scale: _scale,
-                                  unitSystem: _unitSystem,
+                                  unitSystem: notifier.unitSystem,
                                 ),
                               );
                             }),
