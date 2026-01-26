@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:recipe_app/classes/ingredient.dart';
+import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
 class ParsedIngredientPill extends StatefulWidget {
   final Ingredient ingredient;
-  final double scale;
   final bool showSubOption;
   final Future<void> Function() onSub;
   final void Function() removeSubs;
   final List<Ingredient> subs;
   final bool isSub;
+  final double scale;
+  final UnitSystem unitSystem;
+
   const ParsedIngredientPill({
     super.key,
     required this.ingredient,
-    this.scale = 1.0,
     required this.onSub,
     required this.subs,
     this.isSub = false,
     required this.removeSubs,
     required this.showSubOption,
+    required this.unitSystem,
+    required this.scale,
   });
 
   @override
@@ -28,16 +32,57 @@ class ParsedIngredientPill extends StatefulWidget {
 
 class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
   bool loadingSubs = false;
+
+  Ingredient _displayIngredient(Ingredient base) {
+    final qScaled = (base.quantity == null)
+        ? null
+        : base.quantity! * widget.scale;
+
+    if (widget.unitSystem == UnitSystem.original) {
+      return Ingredient(
+        raw: base.raw,
+        quantity: qScaled,
+        unit: base.unit,
+        item: base.item,
+        notes: base.notes,
+      );
+    }
+
+    final target = widget.unitSystem == UnitSystem.metric
+        ? UnitSystem.metric
+        : UnitSystem.imperial;
+
+    final converted = UnitConverter.convert(qScaled, base.unit, target);
+
+    return Ingredient(
+      raw: base.raw, // keep original raw as “source of truth”
+      quantity: converted.qty,
+      unit: converted.unit,
+      item: base.item,
+      notes: base.notes,
+    );
+  }
+
+  String get _viewModeLabel {
+    switch (widget.unitSystem) {
+      case UnitSystem.original:
+        return "Original";
+      case UnitSystem.metric:
+        return "Metric";
+      case UnitSystem.imperial:
+        return "Imperial";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final qty = widget.ingredient.quantity;
     final unit = widget.ingredient.unit;
     final item = widget.ingredient.item ?? widget.ingredient.raw;
-    final displayQty = (qty ?? 0) * widget.scale;
 
     final left = [
-      if (displayQty != 0)
-        displayQty.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), ''),
+      if (qty != null)
+        qty.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), ''),
       if (unit != null && unit.trim().isNotEmpty) unit,
     ].join(' ');
 
@@ -148,17 +193,19 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
         ),
         if (widget.subs.isNotEmpty) const SizedBox(height: 6),
         ...List.generate(widget.subs.length, (i) {
-          final sub = widget.subs[i];
+          final sub = _displayIngredient(widget.subs[i]);
+
           return Padding(
             padding: const EdgeInsets.only(bottom: 6, left: 25),
             child: ParsedIngredientPill(
               ingredient: sub,
-              scale: widget.scale,
               onSub: () async {},
               removeSubs: () {},
               subs: [],
               isSub: true,
               showSubOption: false,
+              scale: widget.scale,
+              unitSystem: widget.unitSystem,
             ),
           );
         }),

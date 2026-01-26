@@ -4,6 +4,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/ingredient.dart';
+import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
@@ -33,6 +34,46 @@ class _RecipePageState extends State<RecipePage> {
   double _scale = 1.0;
   List<Ingredient> subs = [];
   final Map<int, List<Ingredient>> _subsByIndex = {};
+  UnitSystem _unitSystem = UnitSystem.original;
+
+  Ingredient _displayIngredient(Ingredient base) {
+    final qScaled = (base.quantity == null) ? null : base.quantity! * _scale;
+
+    if (_unitSystem == UnitSystem.original) {
+      return Ingredient(
+        raw: base.raw,
+        quantity: qScaled,
+        unit: base.unit,
+        item: base.item,
+        notes: base.notes,
+      );
+    }
+
+    final target = _unitSystem == UnitSystem.metric
+        ? UnitSystem.metric
+        : UnitSystem.imperial;
+
+    final converted = UnitConverter.convert(qScaled, base.unit, target);
+
+    return Ingredient(
+      raw: base.raw, // keep original raw as “source of truth”
+      quantity: converted.qty,
+      unit: converted.unit,
+      item: base.item,
+      notes: base.notes,
+    );
+  }
+
+  String get _viewModeLabel {
+    switch (_unitSystem) {
+      case UnitSystem.original:
+        return "Original";
+      case UnitSystem.metric:
+        return "Metric";
+      case UnitSystem.imperial:
+        return "Imperial";
+    }
+  }
 
   void handleDecreaseServing() {
     if (_currentServings == null) return;
@@ -542,6 +583,62 @@ class _RecipePageState extends State<RecipePage> {
                             ),
                             const SizedBox(width: 8),
                             GestureDetector(
+                              onTap: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  backgroundColor: AppColors.primaryColour,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(16),
+                                    ),
+                                  ),
+                                  builder: (_) {
+                                    Widget option(
+                                      String label,
+                                      UnitSystem mode,
+                                    ) {
+                                      final selected = _unitSystem == mode;
+                                      return ListTile(
+                                        title: Text(
+                                          label,
+                                          style:
+                                              TextStyles.smallHeadingSecondary,
+                                        ),
+                                        trailing: selected
+                                            ? const Icon(
+                                                Icons.check,
+                                                color: Colors.white,
+                                              )
+                                            : null,
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          setState(() => _unitSystem = mode);
+                                        },
+                                      );
+                                    }
+
+                                    return SafeArea(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            option(
+                                              "Original",
+                                              UnitSystem.original,
+                                            ),
+                                            option("Metric", UnitSystem.metric),
+                                            option(
+                                              "Imperial",
+                                              UnitSystem.imperial,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -559,8 +656,8 @@ class _RecipePageState extends State<RecipePage> {
                                       color: AppColors.secondaryTextColour,
                                     ),
                                     const SizedBox(width: 4),
-                                    const Text(
-                                      'Convert',
+                                    Text(
+                                      'Convert ($_viewModeLabel)',
                                       style: TextStyles.bodyTextBoldSecondary,
                                     ),
                                   ],
@@ -575,11 +672,13 @@ class _RecipePageState extends State<RecipePage> {
                               i,
                             ) {
                               final ingred = recipe.ingredients[i];
+                              final displayIngred = _displayIngredient(
+                                recipe.ingredients[i],
+                              );
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 6),
                                 child: ParsedIngredientPill(
-                                  ingredient: ingred,
-                                  scale: _scale,
+                                  ingredient: displayIngred,
                                   showSubOption: true,
                                   onSub: () => handleSubs(
                                     i,
@@ -588,6 +687,8 @@ class _RecipePageState extends State<RecipePage> {
                                   ),
                                   removeSubs: () => handleRemoveSubs(i),
                                   subs: _subsByIndex[i] ?? const [],
+                                  scale: _scale,
+                                  unitSystem: _unitSystem,
                                 ),
                               );
                             }),

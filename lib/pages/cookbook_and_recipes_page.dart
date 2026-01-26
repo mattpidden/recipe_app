@@ -218,39 +218,39 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                   ),
                                 ),
                         ),
-                        if (notifier.cookbooks.isNotEmpty)
-                          const SizedBox(height: 8),
-                        if (notifier.cookbooks.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const AddCookbookManuallyPage(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              height: 50,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryColour,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "Add Cookbook",
-                                  style: TextStyles.smallHeadingSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
+                        // if (notifier.cookbooks.isNotEmpty)
+                        //   const SizedBox(height: 8),
+                        // if (notifier.cookbooks.isNotEmpty)
+                        //   GestureDetector(
+                        //     onTap: () {
+                        //       Navigator.push(
+                        //         context,
+                        //         MaterialPageRoute(
+                        //           builder: (_) =>
+                        //               const AddCookbookManuallyPage(),
+                        //         ),
+                        //       );
+                        //     },
+                        //     child: Container(
+                        //       height: 50,
+                        //       padding: const EdgeInsets.symmetric(
+                        //         horizontal: 12,
+                        //       ),
+                        //       margin: const EdgeInsets.symmetric(
+                        //         horizontal: 16.0,
+                        //       ),
+                        //       decoration: BoxDecoration(
+                        //         color: AppColors.primaryColour,
+                        //         borderRadius: BorderRadius.circular(10),
+                        //       ),
+                        //       child: Center(
+                        //         child: Text(
+                        //           "Add Cookbook",
+                        //           style: TextStyles.smallHeadingSecondary,
+                        //         ),
+                        //       ),
+                        //     ),
+                        //   ),
                         const SizedBox(height: 16),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -364,38 +364,38 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                   ),
                                 ),
                         ),
-                        if (notifier.recipes.isNotEmpty)
-                          const SizedBox(height: 8),
-                        if (notifier.recipes.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AddRecipeManuallyPage(),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              height: 50,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.accentColour1,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "Add Recipe",
-                                  style: TextStyles.smallHeadingSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
+                        // if (notifier.recipes.isNotEmpty)
+                        //   const SizedBox(height: 8),
+                        // if (notifier.recipes.isNotEmpty)
+                        //   GestureDetector(
+                        //     onTap: () {
+                        //       Navigator.push(
+                        //         context,
+                        //         MaterialPageRoute(
+                        //           builder: (_) => AddRecipeManuallyPage(),
+                        //         ),
+                        //       );
+                        //     },
+                        //     child: Container(
+                        //       height: 50,
+                        //       padding: const EdgeInsets.symmetric(
+                        //         horizontal: 12,
+                        //       ),
+                        //       margin: const EdgeInsets.symmetric(
+                        //         horizontal: 16.0,
+                        //       ),
+                        //       decoration: BoxDecoration(
+                        //         color: AppColors.accentColour1,
+                        //         borderRadius: BorderRadius.circular(10),
+                        //       ),
+                        //       child: Center(
+                        //         child: Text(
+                        //           "Add Recipe",
+                        //           style: TextStyles.smallHeadingSecondary,
+                        //         ),
+                        //       ),
+                        //     ),
+                        //   ),
                         const SizedBox(height: 16 + 70 + 16),
                       ],
                     ),

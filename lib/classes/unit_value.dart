@@ -1,6 +1,6 @@
-enum UnitSystem { metric, imperial }
+enum UnitSystem { original, metric, imperial }
 
-enum UnitDim { mass, volume, count, unknown }
+enum UnitDim { mass, volume, length, count, unknown }
 
 class UnitValue {
   final double? qty;
@@ -28,6 +28,30 @@ class UnitConverter {
     'lbs': 'lb',
     'pound': 'lb',
     'pounds': 'lb',
+
+    // length
+    'cm': 'cm',
+    'centimeter': 'cm',
+    'centimeters': 'cm',
+    'mm': 'mm',
+    'millimeter': 'mm',
+    'millimeters': 'mm',
+    'm': 'm',
+    'meter': 'm',
+    'meters': 'm',
+    'metre': 'm',
+    'metres': 'm',
+    'in': 'in',
+    'inch': 'in',
+    'inches': 'in',
+    '"': 'in',
+    'ft': 'ft',
+    'foot': 'ft',
+    'feet': 'ft',
+    "'": 'ft',
+    'yd': 'yd',
+    'yard': 'yd',
+    'yards': 'yd',
 
     // volume
     'ml': 'ml',
@@ -72,6 +96,8 @@ class UnitConverter {
     'gallons': 'gal',
   };
 
+  static Set<String> neutralUnits = {'tsp', 'tbsp'};
+
   static String? normalizeUnit(String? unit) {
     if (unit == null) return null;
     final u = unit.trim().toLowerCase();
@@ -110,6 +136,13 @@ class UnitConverter {
       case 'qt':
       case 'gal':
         return UnitDim.volume;
+      case 'mm':
+      case 'cm':
+      case 'm':
+      case 'in':
+      case 'ft':
+      case 'yd':
+        return UnitDim.length;
       default:
         return UnitDim.unknown;
     }
@@ -198,6 +231,44 @@ class UnitConverter {
     }
   }
 
+  static double _toMm(double v, String u) {
+    switch (u) {
+      case 'mm':
+        return v;
+      case 'cm':
+        return v * 10.0;
+      case 'm':
+        return v * 1000.0;
+      case 'in':
+        return v * 25.4;
+      case 'ft':
+        return v * 304.8;
+      case 'yd':
+        return v * 914.4;
+      default:
+        return v;
+    }
+  }
+
+  static double _fromMm(double mm, String target) {
+    switch (target) {
+      case 'mm':
+        return mm;
+      case 'cm':
+        return mm / 10.0;
+      case 'm':
+        return mm / 1000.0;
+      case 'in':
+        return mm / 25.4;
+      case 'ft':
+        return mm / 304.8;
+      case 'yd':
+        return mm / 914.4;
+      default:
+        return mm;
+    }
+  }
+
   // Pick “nice” target unit by system + magnitude
   static String _bestMassUnit(UnitSystem sys, double grams) {
     if (sys == UnitSystem.metric) return grams >= 1000 ? 'kg' : 'g';
@@ -221,6 +292,19 @@ class UnitConverter {
     return 'gal';
   }
 
+  static String _bestLengthUnit(UnitSystem sys, double mm) {
+    if (sys == UnitSystem.metric) {
+      if (mm >= 1000) return 'm';
+      if (mm >= 10) return 'cm';
+      return 'mm';
+    } else {
+      final inches = _fromMm(mm, 'in');
+      if (inches >= 36) return 'yd';
+      if (inches >= 12) return 'ft';
+      return 'in';
+    }
+  }
+
   static double _roundNice(double v) {
     if (v == 0) return 0;
     if (v >= 10) return double.parse(v.toStringAsFixed(0));
@@ -233,7 +317,7 @@ class UnitConverter {
     if (qty == null) return UnitValue(null, unit);
     final canon = normalizeUnit(unit);
     if (canon == null) return UnitValue(qty, unit); // treat as count/unknown
-
+    if (neutralUnits.contains(canon)) return UnitValue(qty, unit);
     final dim = dimOf(canon);
 
     if (dim == UnitDim.mass) {
@@ -247,6 +331,12 @@ class UnitConverter {
       final ml = _toMl(qty, canon);
       final outUnit = _bestVolumeUnit(target, ml);
       final outQty = _roundNice(_fromMl(ml, outUnit));
+      return UnitValue(outQty, outUnit);
+    }
+    if (dim == UnitDim.length) {
+      final mm = _toMm(qty, canon);
+      final outUnit = _bestLengthUnit(target, mm);
+      final outQty = _roundNice(_fromMm(mm, outUnit));
       return UnitValue(outQty, outUnit);
     }
 

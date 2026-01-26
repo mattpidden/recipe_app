@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/classes/recipe.dart';
+import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/components/inputs.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
@@ -1292,6 +1293,8 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                           onSub: () async {},
                                           subs: [],
                                           removeSubs: () {},
+                                          scale: 1,
+                                          unitSystem: UnitSystem.original,
                                         ),
                                       ),
                                       const SizedBox(width: 8),
