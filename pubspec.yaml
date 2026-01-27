@@ -7,6 +7,7 @@ environment:
   sdk: ^3.9.2
 
 dependencies:
+  audioplayers: ^6.5.1
   cloud_firestore: ^6.1.1
   cloud_functions: ^6.0.6
   firebase_analytics: ^12.1.0
@@ -16,6 +17,8 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_dotenv: ^6.0.0
+  flutter_local_notifications: ^20.0.0
+  flutter_timezone: ^5.0.1
   google_mlkit_barcode_scanning: ^0.14.1
   google_mlkit_text_recognition: ^0.15.0
   google_nav_bar: ^5.0.7
@@ -27,6 +30,7 @@ dependencies:
   purchases_ui_flutter: ^9.10.6
   shared_preferences: ^2.5.4
   smooth_page_indicator: ^2.0.1
+  timezone: ^0.10.1
   url_launcher: ^6.3.2
   wakelock_plus: ^1.4.0
 
@@ -68,3 +72,4 @@ flutter:
     - .env
     - assets/logo.png
     - assets/white_logo.png
+    - assets/timer_sound.mp3

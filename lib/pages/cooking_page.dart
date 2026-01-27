@@ -1,7 +1,8 @@
 import 'dart:async';
-
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/unit_value.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -11,6 +12,11 @@ import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 class CookingModePage extends StatefulWidget {
   final String recipeId;
@@ -33,10 +39,63 @@ class _CookingModePageState extends State<CookingModePage> {
   final Map<int, List<bool>> _checksByStep = {};
   final Map<int, bool> _showIngredientsByStep = {};
   final Map<int, Duration> _timerSetByStep = {}; // chosen duration (stable)
-  final Map<int, Duration> _timerRemainingByStep = {}; // ticking remaining
-  final Map<int, Timer?> _timerByStep = {};
+  final Map<int, DateTime?> _timerEndsAtByStep = {}; // when it should finish
+  final Map<int, Duration> _timerPausedLeftByStep = {}; // left when paused
   final Map<int, bool> _timerRunningByStep = {};
   final Map<int, bool> _timerPausedByStep = {};
+  Timer? _uiTick; // just for repainting the countdown text
+  final FlutterLocalNotificationsPlugin _notifs =
+      FlutterLocalNotificationsPlugin();
+  bool _notifsReady = false;
+  late final AudioPlayer _player;
+  int _notifId(int stepIndex) => 1000 + stepIndex;
+
+  void _initAudio() {
+    _player = AudioPlayer();
+    _player.setReleaseMode(ReleaseMode.stop);
+  }
+
+  Future<void> _initNotifs() async {
+    // timezone (needed for zonedSchedule)
+    tzdata.initializeTimeZones();
+    final tzName = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(tzName.identifier));
+
+    const iosInit = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestSoundPermission: true,
+      requestBadgePermission: false,
+    );
+
+    const initSettings = InitializationSettings(iOS: iosInit);
+
+    await _notifs.initialize(
+      settings: initSettings,
+      // Optional: handle taps later if you want
+      // onDidReceiveNotificationResponse: (resp) { ... }
+    );
+
+    final iosPlugin = _notifs
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    await iosPlugin?.requestPermissions(alert: true, sound: true, badge: false);
+
+    _notifsReady = true;
+  }
+
+  Duration _remaining(int stepIndex) {
+    if ((_timerRunningByStep[stepIndex] ?? false) == true) {
+      final end = _timerEndsAtByStep[stepIndex];
+      if (end == null) return Duration.zero;
+      final d = end.difference(DateTime.now());
+      return d.isNegative ? Duration.zero : d;
+    }
+    if ((_timerPausedByStep[stepIndex] ?? false) == true) {
+      return _timerPausedLeftByStep[stepIndex] ?? Duration.zero;
+    }
+    return _timerSetByStep[stepIndex] ?? const Duration(minutes: 5);
+  }
 
   List<String> _makeChecklist(String step) {
     final s = step.trim();
@@ -153,73 +212,53 @@ class _CookingModePageState extends State<CookingModePage> {
         : const Duration(minutes: 5);
 
     _timerSetByStep.putIfAbsent(stepIndex, () => fallback);
-    _timerRemainingByStep.putIfAbsent(
-      stepIndex,
-      () => _timerSetByStep[stepIndex]!,
-    );
+
     _timerRunningByStep.putIfAbsent(stepIndex, () => false);
     _timerPausedByStep.putIfAbsent(stepIndex, () => false);
   }
 
   void _startOrResumeTimer(int stepIndex) {
-    if ((_timerRunningByStep[stepIndex] ?? false) == true) return;
+    final running = _timerRunningByStep[stepIndex] ?? false;
+    if (running) return;
 
-    _timerByStep[stepIndex]?.cancel();
+    final paused = _timerPausedByStep[stepIndex] ?? false;
+
+    final Duration base = paused
+        ? (_timerPausedLeftByStep[stepIndex] ?? const Duration(minutes: 5))
+        : (_timerSetByStep[stepIndex] ?? const Duration(minutes: 5));
+
+    _timerEndsAtByStep[stepIndex] = DateTime.now().add(base);
     _timerRunningByStep[stepIndex] = true;
     _timerPausedByStep[stepIndex] = false;
 
-    _timerByStep[stepIndex] = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!mounted) return;
-
-      final rem =
-          (_timerRemainingByStep[stepIndex] ?? const Duration(minutes: 5)) -
-          const Duration(seconds: 1);
-
-      if (rem <= Duration.zero) {
-        t.cancel();
-        _timerByStep[stepIndex] = null;
-        _timerRunningByStep[stepIndex] = false;
-        _timerPausedByStep[stepIndex] = false;
-        _timerRemainingByStep[stepIndex] = Duration.zero;
-
-        if (mounted) setState(() {});
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Timer done',
-              style: TextStyles.smallHeadingSecondary,
-            ),
-            backgroundColor: AppColors.primaryColour,
-          ),
-        );
-      } else {
-        _timerRemainingByStep[stepIndex] = rem;
-        if (mounted) setState(() {});
-      }
-    });
-
+    _scheduleStepNotification(stepIndex, base); // ✅ local notification
     setState(() {});
   }
 
   void _pauseTimer(int stepIndex) {
-    _timerByStep[stepIndex]?.cancel();
-    _timerByStep[stepIndex] = null;
+    final end = _timerEndsAtByStep[stepIndex];
+    if (end != null) {
+      final left = end.difference(DateTime.now());
+      _timerPausedLeftByStep[stepIndex] = left.isNegative
+          ? Duration.zero
+          : left;
+    }
+
+    _timerEndsAtByStep[stepIndex] = null;
     _timerRunningByStep[stepIndex] = false;
     _timerPausedByStep[stepIndex] = true;
+
+    _cancelStepNotification(stepIndex);
     setState(() {});
   }
 
   void _resetTimer(int stepIndex) {
-    _timerByStep[stepIndex]?.cancel();
-    _timerByStep[stepIndex] = null;
+    _timerEndsAtByStep[stepIndex] = null;
+    _timerPausedLeftByStep[stepIndex] = Duration.zero;
     _timerRunningByStep[stepIndex] = false;
     _timerPausedByStep[stepIndex] = false;
 
-    final set = _timerSetByStep[stepIndex] ?? const Duration(minutes: 5);
-    _timerRemainingByStep[stepIndex] = set;
-
+    _cancelStepNotification(stepIndex);
     setState(() {});
   }
 
@@ -228,9 +267,9 @@ class _CookingModePageState extends State<CookingModePage> {
 
     final running = _timerRunningByStep[stepIndex] ?? false;
     if (!running) {
-      // if not running, snap remaining to the chosen set duration
-      _timerRemainingByStep[stepIndex] = d;
+      _timerPausedLeftByStep[stepIndex] = Duration.zero;
       _timerPausedByStep[stepIndex] = false;
+      _timerEndsAtByStep[stepIndex] = null;
     }
 
     setState(() {});
@@ -251,7 +290,7 @@ class _CookingModePageState extends State<CookingModePage> {
             final running = _timerRunningByStep[stepIndex] ?? false;
             final paused = _timerPausedByStep[stepIndex] ?? false;
             final setDur = _timerSetByStep[stepIndex]!;
-            final rem = _timerRemainingByStep[stepIndex]!;
+            final rem = _remaining(stepIndex);
 
             String primaryLabel;
             VoidCallback? primaryAction;
@@ -436,15 +475,25 @@ class _CookingModePageState extends State<CookingModePage> {
     super.initState();
     _controller = PageController();
     WakelockPlus.enable();
+    _uiTick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      _checkCompletions();
+      setState(() {});
+    });
+    _initAudio();
+    _initNotifs();
   }
 
   @override
   void dispose() {
     WakelockPlus.disable();
     _controller.dispose();
-    for (final t in _timerByStep.values) {
-      t?.cancel();
+    _uiTick?.cancel();
+    _uiTick = null;
+    for (final i in _timerSetByStep.keys) {
+      _cancelStepNotification(i);
     }
+    _player.dispose();
     super.dispose();
   }
 
@@ -484,6 +533,140 @@ class _CookingModePageState extends State<CookingModePage> {
         ),
       );
     }
+  }
+
+  List<InlineSpan> _stepSpans(
+    String text,
+    int stepIndex,
+    List<Duration> options,
+  ) {
+    final re = RegExp(
+      r'(\d+(?:\.\d+)?)\s*(sec|secs|second|seconds|min|mins|minute|minutes|h|hr|hrs|hour|hours)\b',
+      caseSensitive: false,
+    );
+
+    Duration? toDuration(RegExpMatch m) {
+      final n = double.tryParse(m.group(1) ?? '');
+      if (n == null || n <= 0) return null;
+
+      final unit = (m.group(2) ?? '').toLowerCase();
+
+      if (unit.startsWith('sec')) return Duration(seconds: n.round());
+      if (unit.startsWith('min')) return Duration(minutes: n.round());
+
+      // hours (allow 1.5 hours etc)
+      final mins = (n * 60).round();
+      return Duration(minutes: mins);
+    }
+
+    final spans = <InlineSpan>[];
+    var last = 0;
+
+    for (final m in re.allMatches(text)) {
+      if (m.start > last) {
+        spans.add(TextSpan(text: text.substring(last, m.start)));
+      }
+
+      final d = toDuration(m);
+      final label = text.substring(m.start, m.end);
+
+      if (d == null) {
+        spans.add(TextSpan(text: label));
+      } else {
+        spans.add(
+          TextSpan(
+            text: label,
+            style: TextStyles.pageTitle.copyWith(
+              color: AppColors.primaryColour,
+              fontWeight: FontWeight.bold,
+            ),
+            recognizer: TapGestureRecognizer()
+              ..onTap = () {
+                // If this exact duration exists in the options, select it before opening
+                final match = options.where((o) => o.inSeconds == d.inSeconds);
+                if (match.isNotEmpty) _applyTimerSet(stepIndex, match.first);
+
+                _showTimerSheet(stepIndex, options);
+              },
+          ),
+        );
+      }
+
+      last = m.end;
+    }
+
+    if (last < text.length) {
+      spans.add(TextSpan(text: text.substring(last)));
+    }
+
+    return spans;
+  }
+
+  void _checkCompletions() {
+    for (final entry in _timerEndsAtByStep.entries) {
+      final i = entry.key;
+      final end = entry.value;
+      if (end == null) continue;
+
+      if (DateTime.now().isAfter(end)) {
+        _timerEndsAtByStep[i] = null;
+        _timerRunningByStep[i] = false;
+        _timerPausedByStep[i] = false;
+        _timerPausedLeftByStep[i] = Duration.zero;
+
+        _cancelStepNotification(i);
+
+        _onTimerFinishedForeground(i);
+      }
+    }
+  }
+
+  Future<void> _scheduleStepNotification(
+    int stepIndex,
+    Duration inFromNow,
+  ) async {
+    if (!_notifsReady) return;
+
+    final when = tz.TZDateTime.now(tz.local).add(inFromNow);
+
+    final details = NotificationDetails(
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentSound: true,
+        // NOTE: custom notification sound requires bundling the sound in iOS Runner
+        // and typically .aiff/.caf — NOT flutter assets. So we use default sound here.
+      ),
+    );
+
+    await _notifs.zonedSchedule(
+      id: _notifId(stepIndex),
+      title: 'Timer done',
+      body: 'Step ${stepIndex + 1} is ready.',
+      scheduledDate: when,
+      notificationDetails: details,
+      androidScheduleMode: AndroidScheduleMode.exact,
+    );
+  }
+
+  Future<void> _cancelStepNotification(int stepIndex) async {
+    if (!_notifsReady) return;
+    await _notifs.cancel(id: _notifId(stepIndex));
+  }
+
+  void _onTimerFinishedForeground(int stepIndex) async {
+    // vibration/haptic
+    HapticFeedback.vibrate();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Timer done', style: TextStyles.smallHeadingSecondary),
+        backgroundColor: AppColors.primaryColour,
+      ),
+    );
+    try {
+      await _player.stop();
+      await _player.play(AssetSource('timer_sound.mp3'), volume: 1.0);
+    } catch (_) {}
   }
 
   void handleRemoveSubs(String key) {
@@ -645,13 +828,6 @@ class _CookingModePageState extends State<CookingModePage> {
                             final durations = _extractDurations(step);
                             _ensureTimerDefaults(i, durations);
 
-                            _timerRemainingByStep.putIfAbsent(
-                              i,
-                              () => durations.isNotEmpty
-                                  ? durations.first
-                                  : const Duration(minutes: 5),
-                            );
-
                             final expanded = _showIngredientsByStep[i] ?? false;
 
                             return Padding(
@@ -707,9 +883,7 @@ class _CookingModePageState extends State<CookingModePage> {
                                                   BorderRadius.circular(999),
                                             ),
                                             child: Text(
-                                              _fmtShort(
-                                                _timerRemainingByStep[i]!,
-                                              ),
+                                              _fmtShort(_remaining(i)),
                                               style:
                                                   TextStyles.bodyTextBoldAccent,
                                             ),
@@ -1079,10 +1253,21 @@ class _CookingModePageState extends State<CookingModePage> {
                                                       ),
                                                       const SizedBox(width: 10),
                                                       Expanded(
-                                                        child: Text(
-                                                          checklist[j],
-                                                          style: TextStyles
-                                                              .pageTitle,
+                                                        child: RichText(
+                                                          text: TextSpan(
+                                                            style: TextStyles
+                                                                .pageTitle
+                                                                .copyWith(
+                                                                  color: AppColors
+                                                                      .primaryTextColour,
+                                                                ),
+                                                            children:
+                                                                _stepSpans(
+                                                                  checklist[j],
+                                                                  i,
+                                                                  durations,
+                                                                ),
+                                                          ),
                                                         ),
                                                       ),
                                                     ],
