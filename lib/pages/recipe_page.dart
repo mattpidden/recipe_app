@@ -526,8 +526,10 @@ class _RecipePageState extends State<RecipePage> {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) =>
-                                          CookingModePage(recipeId: recipe.id),
+                                      builder: (_) => CookingModePage(
+                                        recipeId: recipe.id,
+                                        scale: _scale,
+                                      ),
                                     ),
                                   );
                                 },
@@ -630,10 +632,7 @@ class _RecipePageState extends State<RecipePage> {
                                               "Original",
                                               UnitSystem.original,
                                             ),
-                                            option(
-                                              "Metric (grams and ml)",
-                                              UnitSystem.metric,
-                                            ),
+                                            option("Metric", UnitSystem.metric),
                                             option(
                                               "Imperial (cups)",
                                               UnitSystem.imperial_cups,

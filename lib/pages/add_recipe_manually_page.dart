@@ -769,9 +769,13 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
 
       if (!mounted) return;
       if (savedRecipe == null) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => RecipePage(id: savedRecipe.id)),
-      );
+      if (widget.editingRecipe) {
+        Navigator.pop(context);
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => RecipePage(id: savedRecipe.id)),
+        );
+      }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
