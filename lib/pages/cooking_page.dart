@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/unit_value.dart';
+import 'package:recipe_app/pages/cooked_sheet.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import 'package:recipe_app/classes/ingredient.dart';
@@ -1314,8 +1315,15 @@ class _CookingModePageState extends State<CookingModePage> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
+                          onTap: () async {
                             if (_index >= steps.length - 1) {
+                              await showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: AppColors.backgroundColour,
+                                builder: (_) => CookedSheet(recipe: recipe),
+                              );
+
                               Navigator.pop(context);
                             } else {
                               _go(_index + 1, total);

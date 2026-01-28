@@ -6,11 +6,14 @@ import 'package:recipe_app/styles/text_styles.dart';
 
 class ScrollTagSelector extends StatefulWidget {
   final List<String> tagList;
+  final Set<String> initialSelected;
+
   final void Function(Set<String>) onUpdated;
   const ScrollTagSelector({
     super.key,
     this.tagList = const [],
     required this.onUpdated,
+    this.initialSelected = const {},
   });
 
   @override
@@ -18,7 +21,13 @@ class ScrollTagSelector extends StatefulWidget {
 }
 
 class _ScrollTagSelectorState extends State<ScrollTagSelector> {
-  final Set<String> _selected = {};
+  Set<String> _selected = {};
+
+  @override
+  void initState() {
+    _selected = {...widget.initialSelected};
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {

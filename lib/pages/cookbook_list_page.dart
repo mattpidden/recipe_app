@@ -8,7 +8,13 @@ import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
 class CookbookListPage extends StatefulWidget {
-  const CookbookListPage({super.key});
+  final String initialQ;
+  final Set<String> initialTags;
+  const CookbookListPage({
+    super.key,
+    required this.initialQ,
+    required this.initialTags,
+  });
 
   @override
   State<CookbookListPage> createState() => _CookbookListPageState();
@@ -18,6 +24,14 @@ class _CookbookListPageState extends State<CookbookListPage> {
   final _searchCtrl = TextEditingController();
   String _q = "";
   Set<String> _qTags = {};
+  @override
+  void initState() {
+    super.initState();
+
+    _q = widget.initialQ;
+    _qTags = {...widget.initialTags};
+    _searchCtrl.text = _q;
+  }
 
   @override
   void dispose() {
@@ -126,6 +140,7 @@ class _CookbookListPageState extends State<CookbookListPage> {
                 const SizedBox(height: 8),
                 ScrollTagSelector(
                   tagList: listOfUsedTags,
+                  initialSelected: widget.initialTags,
                   onUpdated: (selectedSet) {
                     setState(() {
                       _qTags = selectedSet;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/components/recipe_card.dart';
 import 'package:recipe_app/components/scroll_tag_selector.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
@@ -8,7 +9,14 @@ import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
 class RecipesListPage extends StatefulWidget {
-  const RecipesListPage({super.key});
+  final String initialQ;
+  final Set<String> initialTags;
+
+  const RecipesListPage({
+    super.key,
+    required this.initialQ,
+    required this.initialTags,
+  });
 
   @override
   State<RecipesListPage> createState() => _RecipesListPageState();
@@ -20,6 +28,15 @@ class _RecipesListPageState extends State<RecipesListPage> {
   Set<String> _qTags = {};
 
   @override
+  void initState() {
+    super.initState();
+
+    _q = widget.initialQ;
+    _qTags = {...widget.initialTags};
+    _searchCtrl.text = _q;
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
@@ -29,9 +46,18 @@ class _RecipesListPageState extends State<RecipesListPage> {
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
-        final filtered = notifier.recipes
+        List<Recipe> filtered = notifier.recipes
             .where((r) => notifier.matchRecipes(r, _q, _qTags))
             .toList();
+        final filteredCookbooks = notifier.cookbooks
+            .where((r) => notifier.matchCookbooks(r, _q, _qTags))
+            .toList();
+        filtered.addAll(
+          filteredCookbooks.map((c) => c.recipes).expand((e) => e),
+        );
+        // filtered recipes might now have recipes with same ids, that needs filtering out
+        final seen = <String>{};
+        filtered = filtered.where((r) => seen.add(r.id)).toList();
 
         final listOfUsedTags = notifier.recipes
             .map((r) => r.tags)
@@ -122,6 +148,7 @@ class _RecipesListPageState extends State<RecipesListPage> {
                 const SizedBox(height: 8),
                 ScrollTagSelector(
                   tagList: listOfUsedTags,
+                  initialSelected: widget.initialTags,
                   onUpdated: (selectedSet) {
                     setState(() {
                       _qTags = selectedSet;

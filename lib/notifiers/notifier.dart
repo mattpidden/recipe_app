@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:recipe_app/classes/cookbook.dart';
+import 'package:recipe_app/classes/cookevent.dart';
 import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/classes/unit_value.dart';
@@ -16,6 +17,7 @@ class Notifier extends ChangeNotifier {
   bool isLoading = false;
   List<Recipe> recipes = [];
   List<Cookbook> cookbooks = [];
+  List<CookEvent> cookHistory = [];
   List<String> partnerCodes = [];
 
   final List<String> allTags = [
@@ -268,9 +270,16 @@ class Notifier extends ChangeNotifier {
           .collection('cookbooks')
           .get();
 
+      final cookEventsSnap = await _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('cookhistory')
+          .get();
+
       recipes = recipesSnap.docs.map(Recipe.fromFirestore).toList();
       // for each cookbook, add all the recipes with its id to its list
       cookbooks = cookbooksSnap.docs.map(Cookbook.fromFirestore).toList();
+      cookHistory = cookEventsSnap.docs.map(CookEvent.fromFirestore).toList();
       for (Cookbook c in cookbooks) {
         final cRecipes = recipes
             .where((r) => (r.cookbookId ?? '') == c.id)
@@ -281,6 +290,7 @@ class Notifier extends ChangeNotifier {
       // If anything goes wrong, keep it safe and empty for now
       recipes = [];
       cookbooks = [];
+      cookHistory = [];
     } finally {
       isLoading = false;
       notifyListeners();
@@ -478,50 +488,188 @@ class Notifier extends ChangeNotifier {
     }
   }
 
+  Future<void> addCookedEvent({
+    required String recipeId,
+    required int rating, // 1..5
+    String? comment,
+    String? occasion,
+    List<String> withWho = const [],
+    bool? wouldMakeAgain,
+    DateTime? cookedAt,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final rIndex = recipes.indexWhere((r) => r.id == recipeId);
+    if (rIndex == -1) return;
+
+    final recipe = recipes[rIndex];
+    final now = cookedAt ?? DateTime.now();
+
+    final cleanComment = (comment?.trim().isEmpty ?? true)
+        ? null
+        : comment!.trim();
+    final cleanOccasion = (occasion?.trim().isEmpty ?? true)
+        ? null
+        : occasion!.trim();
+    final cleanWithWho = withWho
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    final historyRef = _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('cookhistory')
+        .doc();
+
+    final event = CookEvent(
+      id: historyRef.id,
+      recipeId: recipeId,
+      cookbookId: recipe.cookbookId,
+      cookedAt: now,
+      rating: rating.clamp(1, 5),
+      comment: cleanComment,
+      occasion: cleanOccasion,
+      withWho: cleanWithWho,
+      wouldMakeAgain: wouldMakeAgain,
+    );
+
+    // build updated recipe
+    final updatedRecipe = recipe.copyWith(
+      cookCount: recipe.cookCount + 1,
+      lastRating: event.rating,
+      lastCookedAt: now,
+      updatedAt: DateTime.now(),
+    );
+
+    // maybe update cookbook stats too
+    Cookbook? updatedCookbook;
+    int cIndex = -1;
+    if (recipe.cookbookId != null) {
+      cIndex = cookbooks.indexWhere((c) => c.id == recipe.cookbookId);
+      if (cIndex != -1) {
+        final c = cookbooks[cIndex];
+        updatedCookbook = c.copyWith(
+          cookCount: (c.cookCount ?? 0) + 1,
+          lastCookedAt: now,
+          updatedAt: DateTime.now(),
+        );
+      }
+    }
+
+    // optimistic local update
+    recipes[rIndex] = updatedRecipe;
+    cookHistory = [event, ...cookHistory];
+    if (updatedCookbook != null && cIndex != -1) {
+      cookbooks[cIndex] = updatedCookbook;
+      // keep the cookbook.recipes list in sync (if you rely on it)
+      cookbooks[cIndex].recipes = recipes
+          .where((r) => r.cookbookId == cookbooks[cIndex].id)
+          .toList();
+    }
+    notifyListeners();
+
+    // Firestore transaction so counts can't desync
+    try {
+      await _db.runTransaction((tx) async {
+        tx.set(historyRef, event.toFirestore());
+
+        final recipeRef = _db
+            .collection('users')
+            .doc(user.uid)
+            .collection('recipes')
+            .doc(recipeId);
+
+        tx.update(recipeRef, updatedRecipe.toFirestore());
+
+        if (updatedCookbook != null) {
+          final cookbookRef = _db
+              .collection('users')
+              .doc(user.uid)
+              .collection('cookbooks')
+              .doc(updatedCookbook.id);
+
+          tx.update(cookbookRef, updatedCookbook.toFirestore());
+        }
+      });
+    } catch (e) {
+      // rollback by refreshing (simple + safe)
+      await refresh();
+      rethrow;
+    }
+  }
+
   bool matchRecipes(Recipe r, String q, Set<String> qTags) {
     final qq = q.trim().toLowerCase();
+    final hasText = qq.isNotEmpty;
+    final hasTags = qTags.isNotEmpty;
+
+    // nothing selected → show all
+    if (!hasText && !hasTags) return true;
 
     // ---- TEXT MATCH ----
-    bool textMatch = true;
-    if (qq.isNotEmpty) {
+    bool textOk = true;
+    if (hasText) {
       final title = r.title.toLowerCase();
       final desc = (r.description ?? '').toLowerCase();
+      final author = (r.sourceAuthor ?? '').toLowerCase();
       final ingredients = r.ingredients
           .map((i) => i.raw)
           .join(' ')
           .toLowerCase();
+      final tags = r.tags.map((t) => t).join(' ').toLowerCase();
 
-      textMatch =
-          title.contains(qq) || desc.contains(qq) || ingredients.contains(qq);
+      textOk =
+          title.contains(qq) ||
+          desc.contains(qq) ||
+          author.contains(qq) ||
+          ingredients.contains(qq) ||
+          tags.contains(qq);
     }
 
     // ---- TAG MATCH (exact) ----
-    bool tagMatch = true;
-    if (qTags.isNotEmpty) {
+    bool tagsOk = true;
+    if (hasTags) {
       final recipeTags = r.tags.map((t) => t.toLowerCase()).toSet();
-
-      tagMatch = qTags.every((t) => recipeTags.contains(t.toLowerCase()));
+      tagsOk = qTags.every((t) => recipeTags.contains(t.toLowerCase()));
     }
 
-    return textMatch && tagMatch;
+    // if both provided → both must hold
+    return textOk && tagsOk;
   }
 
   bool matchCookbooks(Cookbook c, String q, Set<String> qTags) {
     final qq = q.trim().toLowerCase();
+    final hasText = qq.isNotEmpty;
+    final hasTags = qTags.isNotEmpty;
 
-    // text match against cookbook fields
-    final title = c.title.toLowerCase();
-    final desc = (c.description ?? '').toLowerCase();
+    if (!hasText && !hasTags) return true;
 
-    final bool cookbookTextMatch = qq.isEmpty
-        ? true
-        : (title.contains(qq) || desc.contains(qq));
+    // TEXT: match cookbook title/desc OR any recipe text
+    bool textOk = true;
+    if (hasText) {
+      final title = c.title.toLowerCase();
+      final desc = (c.description ?? '').toLowerCase();
+      final author = (c.author ?? '').toLowerCase();
+      final cookbookTextMatch =
+          title.contains(qq) || desc.contains(qq) || author.contains(qq);
 
-    // recipe match: if any recipe matches both q and qTags, include cookbook
-    final bool recipeMatch = c.recipes.any((r) => matchRecipes(r, q, qTags));
+      // recipe text-only match (ignore tags here)
+      final recipeTextMatch = c.recipes.any(
+        (r) => matchRecipes(r, q, const {}),
+      );
 
-    // If query/tags are empty, this returns true (shows all)
-    // Otherwise: match if cookbook matches directly OR any recipe matches
-    return (cookbookTextMatch) || recipeMatch;
+      textOk = cookbookTextMatch || recipeTextMatch;
+    }
+
+    // TAGS: must be satisfied by at least one recipe (ignore text here)
+    bool tagsOk = true;
+    if (hasTags) {
+      tagsOk = c.recipes.any((r) => matchRecipes(r, '', qTags));
+    }
+
+    // BOTH must hold if both are provided
+    return textOk && tagsOk;
   }
 }

@@ -13,6 +13,7 @@ class Cookbook {
 
   // Optional “nice to have” fields for UI sorting / stats
   final DateTime? lastCookedAt;
+  final int? cookCount;
   final int? recipeCount; // optional denormalised
 
   final DateTime createdAt;
@@ -28,6 +29,7 @@ class Cookbook {
     this.description,
     this.coverImageUrl,
     this.lastCookedAt,
+    this.cookCount,
     this.recipeCount,
     required this.createdAt,
     required this.updatedAt,
@@ -54,6 +56,8 @@ class Cookbook {
       coverImageUrl: data['coverImageUrl'] as String?,
       lastCookedAt: dt(data['lastCookedAt']),
       recipeCount: (data['recipeCount'] as num?)?.toInt(),
+      cookCount: (data['cookCount'] as num?)?.toInt(),
+
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -70,6 +74,8 @@ class Cookbook {
       if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
       if (lastCookedAt != null) 'lastCookedAt': ts(lastCookedAt!),
       if (recipeCount != null) 'recipeCount': recipeCount,
+      if (cookCount != null) 'cookCount': cookCount,
+
       'createdAt': ts(createdAt),
       'updatedAt': ts(updatedAt),
     };
@@ -84,6 +90,7 @@ class Cookbook {
     String? description,
     String? coverImageUrl,
     DateTime? lastCookedAt,
+    int? cookCount,
     int? recipeCount,
     DateTime? updatedAt,
     List<Recipe>? recipes,
@@ -96,6 +103,7 @@ class Cookbook {
       description: description ?? this.description,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       lastCookedAt: lastCookedAt ?? this.lastCookedAt,
+      cookCount: cookCount ?? this.cookCount,
       recipeCount: recipeCount ?? this.recipeCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

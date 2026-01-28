@@ -4,11 +4,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/ingredient.dart';
+import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
 import 'package:recipe_app/pages/cookbook_page.dart';
+import 'package:recipe_app/pages/cooked_sheet.dart';
 import 'package:recipe_app/pages/cooking_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
@@ -133,6 +135,15 @@ class _RecipePageState extends State<RecipePage> {
     setState(() {
       _subsByIndex[index] = [];
     });
+  }
+
+  void _showCookedSheet(BuildContext context, Recipe recipe) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.backgroundColour,
+      builder: (_) => CookedSheet(recipe: recipe),
+    );
   }
 
   @override
@@ -555,7 +566,9 @@ class _RecipePageState extends State<RecipePage> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () {},
+                                onTap: () {
+                                  _showCookedSheet(context, recipe);
+                                },
                                 child: Container(
                                   height: 50,
                                   padding: const EdgeInsets.symmetric(
@@ -842,6 +855,11 @@ class _RecipePageState extends State<RecipePage> {
                                       label: 'Type',
                                       value: recipe.sourceType,
                                     ),
+                                    if (cookbook != null)
+                                      _InfoRow(
+                                        label: 'Cookbook',
+                                        value: cookbook.title,
+                                      ),
                                     if ((recipe.sourceTitle ?? '')
                                         .trim()
                                         .isNotEmpty)
@@ -863,11 +881,7 @@ class _RecipePageState extends State<RecipePage> {
                                         label: 'URL',
                                         value: recipe.sourceUrl!,
                                       ),
-                                    if (cookbook != null)
-                                      _InfoRow(
-                                        label: 'Cookbook',
-                                        value: cookbook.title,
-                                      ),
+
                                     if (recipe.pageNumber != null)
                                       _InfoRow(
                                         label: 'Page',

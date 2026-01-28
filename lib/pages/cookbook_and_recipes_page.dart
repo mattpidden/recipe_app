@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/components/cookbook_card.dart';
 import 'package:recipe_app/components/recipe_card.dart';
 import 'package:recipe_app/components/scroll_tag_selector.dart';
@@ -33,24 +34,26 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
-        final filteredRecipes = notifier.recipes
+        List<Recipe> filteredRecipes = notifier.recipes
             .where((r) => notifier.matchRecipes(r, _q, _qTags))
             .toList();
         final filteredCookbooks = notifier.cookbooks
             .where((r) => notifier.matchCookbooks(r, _q, _qTags))
             .toList();
-        final listOfUsedTags = notifier.cookbooks
-            .map(
-              (c) => c.recipes
-                  .map((r) => r.tags)
-                  .toList()
-                  .expand((e) => e)
-                  .toSet()
-                  .toList(),
-            )
+        filteredRecipes.addAll(
+          filteredCookbooks.map((c) => c.recipes).expand((e) => e),
+        );
+        // filtered recipes might now have recipes with same ids, that needs filtering out
+        final seen = <String>{};
+        filteredRecipes = filteredRecipes.where((r) => seen.add(r.id)).toList();
+
+        final listOfUsedTags = notifier.recipes
+            .map((r) => r.tags)
+            .toList()
             .expand((e) => e)
             .toSet()
             .toList();
+
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
@@ -112,7 +115,10 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => const CookbookListPage(),
+                                  builder: (_) => CookbookListPage(
+                                    initialQ: _q,
+                                    initialTags: _qTags,
+                                  ),
                                 ),
                               );
                             },
@@ -259,7 +265,10 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => const RecipesListPage(),
+                                  builder: (_) => RecipesListPage(
+                                    initialQ: _q,
+                                    initialTags: _qTags,
+                                  ),
                                 ),
                               );
                             },

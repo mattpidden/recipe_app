@@ -23,6 +23,7 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> {
   int _selectedIndex = 1;
   bool _fabOpen = false;
+  bool _hideNavBar = false;
 
   void _toggleFab() => setState(() => _fabOpen = !_fabOpen);
   void _closeFab() => setState(() => _fabOpen = false);
@@ -61,171 +62,174 @@ class _MainPageState extends State<MainPage> {
               children: [
                 IndexedStack(index: _selectedIndex, children: _pages),
 
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  right: 98,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 10,
-                      horizontal: 20,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(15),
-                        topRight: Radius.circular(15),
-                        bottomLeft: Radius.circular(40),
-                        bottomRight: Radius.circular(15),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primaryTextColour.withAlpha(30),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    child: GNav(
-                      gap: 8,
-                      selectedIndex: _selectedIndex,
-                      onTabChange: (i) => setState(() => _selectedIndex = i),
+                if (!_hideNavBar)
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    right: 98,
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
+                        vertical: 10,
+                        horizontal: 20,
                       ),
-                      color: AppColors.primaryColour,
-                      activeColor: Colors.white,
-                      tabBackgroundColor: AppColors.primaryColour,
-                      tabs: const [
-                        GButton(icon: Icons.home, text: 'Home'),
-                        GButton(icon: Icons.menu_book, text: 'Recipes'),
-                        GButton(icon: Icons.calendar_today, text: 'Plan'),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(15),
+                          topRight: Radius.circular(15),
+                          bottomLeft: Radius.circular(40),
+                          bottomRight: Radius.circular(15),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryTextColour.withAlpha(30),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: GNav(
+                        gap: 8,
+                        selectedIndex: _selectedIndex,
+                        onTabChange: (i) => setState(() => _selectedIndex = i),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        color: AppColors.primaryColour,
+                        activeColor: Colors.white,
+                        tabBackgroundColor: AppColors.primaryColour,
+                        tabs: const [
+                          GButton(icon: Icons.home, text: 'Home'),
+                          GButton(icon: Icons.menu_book, text: 'Recipes'),
+                          GButton(icon: Icons.calendar_today, text: 'Plan'),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                if (!_hideNavBar)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      ignoring: !_fabOpen,
+                      child: GestureDetector(
+                        onTap: _closeFab,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 100),
+                          opacity: _fabOpen ? 1 : 0,
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(
+                              sigmaX: _fabOpen ? 20 : 0,
+                              sigmaY: _fabOpen ? 20 : 0,
+                            ),
+                            child: Container(
+                              color: Colors.grey.shade900.withAlpha(150),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                if (!_hideNavBar)
+                  Positioned(
+                    right: 16,
+                    bottom: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _FabAction(
+                          visible: _fabOpen,
+                          index: 0,
+                          label: 'Add Cookbook',
+                          icon: Icons.menu_book_outlined,
+                          onTap: () {
+                            _closeFab();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AddCookbookManuallyPage(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 10),
+                        _FabAction(
+                          visible: _fabOpen,
+                          index: 1,
+                          label: 'Add Recipe',
+                          icon: Icons.receipt_long,
+                          onTap: () {
+                            _closeFab();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AddRecipeManuallyPage(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        _FabAction(
+                          visible: _fabOpen,
+                          index: 2,
+                          label: 'Add Recipe From Photo',
+                          icon: Icons.photo_camera,
+                          onTap: () {
+                            _closeFab();
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    AddRecipeManuallyPage(openCamera: true),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 8),
+
+                        // main button styled like navbar
+                        GestureDetector(
+                          onTap: _toggleFab,
+                          child: Container(
+                            height: 70,
+                            width: 70,
+                            decoration: BoxDecoration(
+                              color: _fabOpen ? null : AppColors.primaryColour,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(15),
+                                topRight: Radius.circular(15),
+                                bottomLeft: Radius.circular(15),
+                                bottomRight: Radius.circular(40),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primaryTextColour.withAlpha(
+                                    30,
+                                  ),
+                                  blurRadius: 10,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: AnimatedRotation(
+                                turns: _fabOpen ? 0.125 : 0.0, // 45 degrees
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOut,
+                                child: Icon(
+                                  Icons.add,
+                                  size: _fabOpen ? 35 : 25,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ),
-
-                Positioned.fill(
-                  child: IgnorePointer(
-                    ignoring: !_fabOpen,
-                    child: GestureDetector(
-                      onTap: _closeFab,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 100),
-                        opacity: _fabOpen ? 1 : 0,
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(
-                            sigmaX: _fabOpen ? 20 : 0,
-                            sigmaY: _fabOpen ? 20 : 0,
-                          ),
-                          child: Container(
-                            color: Colors.grey.shade900.withAlpha(150),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                Positioned(
-                  right: 16,
-                  bottom: 16,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _FabAction(
-                        visible: _fabOpen,
-                        index: 0,
-                        label: 'Add Cookbook',
-                        icon: Icons.menu_book_outlined,
-                        onTap: () {
-                          _closeFab();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AddCookbookManuallyPage(),
-                            ),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 10),
-                      _FabAction(
-                        visible: _fabOpen,
-                        index: 1,
-                        label: 'Add Recipe',
-                        icon: Icons.receipt_long,
-                        onTap: () {
-                          _closeFab();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AddRecipeManuallyPage(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 10),
-                      _FabAction(
-                        visible: _fabOpen,
-                        index: 2,
-                        label: 'Add Recipe From Photo',
-                        icon: Icons.photo_camera,
-                        onTap: () {
-                          _closeFab();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  AddRecipeManuallyPage(openCamera: true),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 8),
-
-                      // main button styled like navbar
-                      GestureDetector(
-                        onTap: _toggleFab,
-                        child: Container(
-                          height: 70,
-                          width: 70,
-                          decoration: BoxDecoration(
-                            color: _fabOpen ? null : AppColors.primaryColour,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(15),
-                              topRight: Radius.circular(15),
-                              bottomLeft: Radius.circular(15),
-                              bottomRight: Radius.circular(40),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primaryTextColour.withAlpha(
-                                  30,
-                                ),
-                                blurRadius: 10,
-                                spreadRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: AnimatedRotation(
-                              turns: _fabOpen ? 0.125 : 0.0, // 45 degrees
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOut,
-                              child: Icon(
-                                Icons.add,
-                                size: _fabOpen ? 35 : 25,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
             extendBody: true,

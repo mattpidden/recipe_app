@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/components/recent_cooks.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
@@ -32,6 +33,7 @@ class _HomePageState extends State<HomePage> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  RecentCookedCard(),
                 ],
               ),
             ),
