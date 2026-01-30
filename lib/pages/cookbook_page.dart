@@ -117,11 +117,15 @@ class _CookbookPageState extends State<CookbookPage> {
                                         .trim()
                                         .isNotEmpty) ...[
                                       const SizedBox(height: 4),
-                                      Text(
-                                        cookbook.description!,
-                                        style: TextStyles.inputText,
-                                        maxLines: 6,
-                                        overflow: TextOverflow.ellipsis,
+                                      Expanded(
+                                        child: SingleChildScrollView(
+                                          child: Text(
+                                            cookbook.description ?? "",
+                                            style: TextStyles.inputText,
+                                            maxLines: 6,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ],

@@ -438,7 +438,7 @@ class _RecipePageState extends State<RecipePage> {
                                   Expanded(
                                     child: SingleChildScrollView(
                                       child: Text(
-                                        recipe.description!,
+                                        recipe.description ?? " ",
                                         style: TextStyles.inputText,
                                         maxLines: 50,
                                         overflow: TextOverflow.ellipsis,

@@ -40,12 +40,12 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
         final filteredCookbooks = notifier.cookbooks
             .where((r) => notifier.matchCookbooks(r, _q, _qTags))
             .toList();
-        filteredRecipes.addAll(
-          filteredCookbooks.map((c) => c.recipes).expand((e) => e),
-        );
-        // filtered recipes might now have recipes with same ids, that needs filtering out
-        final seen = <String>{};
-        filteredRecipes = filteredRecipes.where((r) => seen.add(r.id)).toList();
+        // filteredRecipes.addAll(
+        //   filteredCookbooks.map((c) => c.recipes).expand((e) => e),
+        // );
+        // // filtered recipes might now have recipes with same ids, that needs filtering out
+        // final seen = <String>{};
+        // filteredRecipes = filteredRecipes.where((r) => seen.add(r.id)).toList();
 
         final listOfUsedTags = notifier.recipes
             .map((r) => r.tags)

@@ -6,6 +6,7 @@ import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:recipe_app/pages/add_cookbook_manually_page.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
+import 'package:recipe_app/pages/add_shopping_list_sheet.dart';
 import 'package:recipe_app/pages/auth_error_page.dart';
 import 'package:recipe_app/pages/cookbook_and_recipes_page.dart';
 import 'package:recipe_app/pages/home_page.dart';
@@ -187,6 +188,24 @@ class _MainPageState extends State<MainPage> {
                             );
                           },
                         ),
+                        const SizedBox(height: 10),
+                        _FabAction(
+                          visible: _fabOpen,
+                          index: 2,
+                          label: 'Add to Shopping List',
+                          icon: Icons.receipt,
+                          onTap: () {
+                            _closeFab();
+                            _selectedIndex = 2;
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: AppColors.backgroundColour,
+                              builder: (_) => AddShoppingItemSheet(),
+                            );
+                          },
+                        ),
+
                         const SizedBox(height: 8),
 
                         // main button styled like navbar

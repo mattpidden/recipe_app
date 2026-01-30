@@ -1,10 +1,14 @@
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:recipe_app/classes/cookbook.dart';
 import 'package:recipe_app/classes/cookevent.dart';
 import 'package:recipe_app/classes/ingredient.dart';
+import 'package:recipe_app/classes/plannedmeal.dart';
 import 'package:recipe_app/classes/recipe.dart';
+import 'package:recipe_app/classes/shoppingitem.dart';
 import 'package:recipe_app/classes/unit_value.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,6 +23,8 @@ class Notifier extends ChangeNotifier {
   List<Cookbook> cookbooks = [];
   List<CookEvent> cookHistory = [];
   List<String> partnerCodes = [];
+  List<PlannedMeal> plannedMeals = [];
+  List<ShoppingItem> shoppingListItems = [];
 
   final List<String> allTags = [
     // Diet & Lifestyle
@@ -276,16 +282,33 @@ class Notifier extends ChangeNotifier {
           .collection('cookhistory')
           .get();
 
+      final planSnap = await _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('plannedmeals')
+          .get();
+
+      final listSnap = await _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('shoppinglist')
+          .get();
+
       recipes = recipesSnap.docs.map(Recipe.fromFirestore).toList();
       // for each cookbook, add all the recipes with its id to its list
       cookbooks = cookbooksSnap.docs.map(Cookbook.fromFirestore).toList();
       cookHistory = cookEventsSnap.docs.map(CookEvent.fromFirestore).toList();
+      plannedMeals = planSnap.docs.map(PlannedMeal.fromFirestore).toList();
+      shoppingListItems = listSnap.docs
+          .map(ShoppingItem.fromFirestore)
+          .toList();
       for (Cookbook c in cookbooks) {
         final cRecipes = recipes
             .where((r) => (r.cookbookId ?? '') == c.id)
             .toList();
         c.recipes = cRecipes;
       }
+      await ensureAutoPlanNext7Days();
     } catch (_) {
       // If anything goes wrong, keep it safe and empty for now
       recipes = [];
@@ -295,6 +318,443 @@ class Notifier extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> addToShoppingList(String item) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final ref = _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('shoppinglist')
+        .doc();
+
+    final newItem = ShoppingItem(
+      id: ref.id,
+      createdAt: DateTime.now(),
+      name: item,
+      category: 'Other',
+      checked: false,
+    );
+
+    shoppingListItems = [...shoppingListItems, newItem];
+    notifyListeners();
+
+    await ref.set(newItem.toFirestore());
+  }
+
+  Future<void> deleteFromShoppingList(String id) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    shoppingListItems = shoppingListItems.where((x) => x.id != id).toList();
+    notifyListeners();
+
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('shoppinglist')
+        .doc(id)
+        .delete();
+  }
+
+  Future<void> clearShoppingList() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final batch = _db.batch();
+    final col = _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('shoppinglist');
+
+    for (final it in shoppingListItems) {
+      batch.delete(col.doc(it.id));
+    }
+
+    shoppingListItems = [];
+    notifyListeners();
+
+    await batch.commit();
+  }
+
+  Future<void> toggleShoppingItem(String id) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final i = shoppingListItems.indexWhere((x) => x.id == id);
+    if (i == -1) return;
+
+    final item = shoppingListItems[i];
+    final updated = item.copyWith(checked: !item.checked);
+
+    shoppingListItems[i] = updated;
+    notifyListeners();
+
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('shoppinglist')
+        .doc(id)
+        .update({'checked': updated.checked});
+  }
+
+  Future<void> convertPlanToShoppingListNext7Days() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final today = _dateOnly(DateTime.now());
+
+    final committed = plannedMeals.where(
+      (pm) =>
+          pm.status == PlannedMealStatus.committed &&
+          !_dateOnly(pm.day).isBefore(today),
+    );
+
+    String categoryFor(String name) {
+      final n = name.toLowerCase();
+      if (n.contains('milk') ||
+          n.contains('cheese') ||
+          n.contains('yogurt') ||
+          n.contains('butter'))
+        return 'Dairy';
+      if (n.contains('chicken') ||
+          n.contains('beef') ||
+          n.contains('pork') ||
+          n.contains('fish') ||
+          n.contains('salmon'))
+        return 'Meat & Fish';
+      if (n.contains('onion') ||
+          n.contains('garlic') ||
+          n.contains('tomato') ||
+          n.contains('lettuce') ||
+          n.contains('spinach'))
+        return 'Produce';
+      if (n.contains('bread') || n.contains('wrap') || n.contains('tortilla')) {
+        return 'Bakery';
+      }
+      return 'Pantry';
+    }
+
+    String stableIdForName(String name) {
+      return name
+          .trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+          .replaceAll(RegExp(r'^_+|_+$'), '');
+    }
+
+    final existingById = {for (final i in shoppingListItems) i.id: i};
+
+    final toUpsert = <String, ShoppingItem>{}; // id -> item
+
+    for (final pm in committed) {
+      final r = recipes.firstWhere(
+        (x) => x.id == pm.recipeId,
+        orElse: () => Recipe.create(id: 'x', title: ''),
+      );
+      if (r.id == 'x') continue;
+
+      for (final ing in r.ingredients) {
+        final name = (ing.item?.trim().isNotEmpty ?? false)
+            ? ing.item!.trim()
+            : ing.raw.trim();
+
+        if (name.isEmpty) continue;
+
+        final id = stableIdForName(name);
+        if (id.isEmpty) continue;
+
+        final existing = existingById[id];
+
+        toUpsert.putIfAbsent(
+          id,
+          () => ShoppingItem(
+            id: id,
+            name: name,
+            category: categoryFor(name),
+            checked:
+                existing?.checked ?? false, // keep checked if already exists
+            createdAt: existing?.createdAt ?? DateTime.now(),
+          ),
+        );
+      }
+    }
+
+    if (toUpsert.isEmpty) return;
+
+    // merge with existing list (keep anything already there, update/add by id)
+    final merged = {...existingById, ...toUpsert};
+
+    shoppingListItems = merged.values.toList()
+      ..sort((a, b) {
+        final c = a.category.compareTo(b.category);
+        if (c != 0) return c;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+
+    notifyListeners();
+
+    final batch = _db.batch();
+    final col = _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('shoppinglist');
+
+    for (final item in toUpsert.values) {
+      final ref = col.doc(item.id);
+      batch.set(ref, item.toFirestore(), SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  Future<void> ensureAutoPlanNext7Days() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final today = _dateOnly(DateTime.now());
+    final days = List.generate(7, (i) => today.add(Duration(days: i)));
+
+    final rng = Random();
+
+    // Only 1 dinner per day. If already has committed OR suggested dinner, skip.
+    bool hasMealOnDay(DateTime day) {
+      return plannedMeals.any(
+        (pm) => _dateOnly(pm.day) == day && pm.meal == 'dinner',
+      );
+    }
+
+    // Build candidates
+    final candidates = [...recipes];
+    if (candidates.isEmpty) return;
+
+    // Basic scoring: prefer wouldMakeAgain / high rating / recently cooked / quick weekday
+    double score(Recipe r, DateTime day) {
+      double s = 0;
+
+      // quick midweek bias
+      final isWeekday = day.weekday <= 5;
+      final t = r.timeMinutes ?? 999;
+      if (isWeekday && t <= 35) s += 3;
+      if (!isWeekday && t <= 60) s += 1;
+
+      // cooked stats
+      if (r.lastRating != null) s += (r.lastRating! - 3) * 1.2;
+      if (r.lastCookedAt != null) {
+        final daysAgo = DateTime.now().difference(r.lastCookedAt!).inDays;
+        if (daysAgo <= 14) s += 2.0;
+        if (daysAgo >= 90) s += 1.0; // nice to resurface older stuff
+      }
+
+      // tag nudges (optional)
+      if (r.tags.any((t) => t.toLowerCase() == 'quick')) s += 1.0;
+
+      return s;
+    }
+
+    // Weighted pick (higher score = more likely), with a bit of jitter so plans vary
+    Recipe weightedPick(List<Recipe> options, DateTime day) {
+      const temperature =
+          5.0; // higher = more random, lower = more deterministic
+      final weights = options.map((r) {
+        final s = score(r, day);
+
+        // jitter breaks ties + avoids same plan every open
+        final jitter = (rng.nextDouble() - 0.5) * 0.6; // [-0.3, +0.3]
+
+        // softmax-ish weight
+        return exp((s + jitter) / temperature);
+      }).toList();
+
+      final total = weights.fold<double>(0, (a, b) => a + b);
+      var roll = rng.nextDouble() * total;
+
+      for (var i = 0; i < options.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) return options[i];
+      }
+      return options.last;
+    }
+
+    String reasonFor(Recipe r, DateTime day) {
+      final isWeekday = day.weekday <= 5;
+      final t = r.timeMinutes;
+
+      if (r.lastRating != null &&
+          r.lastRating! >= 5 &&
+          r.lastCookedAt != null) {
+        final daysAgo = DateTime.now().difference(r.lastCookedAt!).inDays;
+        if (daysAgo <= 14) return 'You rated this 5 stars recently';
+      }
+      if (isWeekday && t != null && t <= 35)
+        return 'Quick prep meal for midweek';
+      if (!isWeekday && t != null && t <= 60) return 'Good weekend cook';
+      if (t != null) return '${t} min dinner idea';
+      return 'Suggested for your plan';
+    }
+
+    // Don’t repeat same recipe twice in the 7-day suggestions (unless needed)
+    final usedRecipeIds = plannedMeals
+        .where((pm) => days.contains(_dateOnly(pm.day)))
+        .map((pm) => pm.recipeId)
+        .toSet();
+
+    final toCreate = <PlannedMeal>[];
+
+    for (final day in days) {
+      if (hasMealOnDay(day)) continue;
+
+      // Only choose from recipes not already used in this 7-day window
+      final available = candidates
+          .where((r) => !usedRecipeIds.contains(r.id))
+          .toList();
+
+      // If user has fewer recipes than empty days, we simply stop adding (no duplicates)
+      if (available.isEmpty) continue;
+
+      final pick = weightedPick(available, day);
+      usedRecipeIds.add(pick.id);
+
+      final ref = _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('plannedmeals')
+          .doc();
+
+      toCreate.add(
+        PlannedMeal(
+          id: ref.id,
+          recipeId: pick.id,
+          day: day,
+          meal: 'dinner',
+          status: PlannedMealStatus.suggested,
+          reason: reasonFor(pick, day),
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+
+    if (toCreate.isEmpty) return;
+
+    // optimistic local
+    plannedMeals = [...plannedMeals, ...toCreate];
+    notifyListeners();
+
+    // write
+    final batch = _db.batch();
+    for (final pm in toCreate) {
+      final ref = _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('plannedmeals')
+          .doc(pm.id);
+      batch.set(ref, pm.toFirestore());
+    }
+    await batch.commit();
+  }
+
+  Future<void> addPlannedDinnerForDay({
+    required DateTime day,
+    required String recipeId,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final d = _dateOnly(day);
+
+    final alreadyHasDinner = plannedMeals.any(
+      (pm) => _dateOnly(pm.day) == d && pm.meal == 'dinner',
+    );
+    if (alreadyHasDinner) return;
+
+    final ref = _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('plannedmeals')
+        .doc();
+
+    final pm = PlannedMeal(
+      id: ref.id,
+      recipeId: recipeId,
+      day: d,
+      meal: 'dinner',
+      status: PlannedMealStatus.committed,
+      reason: 'Added by you',
+      createdAt: DateTime.now(),
+    );
+
+    plannedMeals = [...plannedMeals, pm];
+    notifyListeners();
+
+    await ref.set(pm.toFirestore());
+  }
+
+  Future<void> acceptPlannedMeal(String plannedMealId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final i = plannedMeals.indexWhere((p) => p.id == plannedMealId);
+    if (i == -1) return;
+
+    final updated = plannedMeals[i].copyWith(
+      status: PlannedMealStatus.committed,
+    );
+    plannedMeals[i] = updated;
+    notifyListeners();
+
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('plannedmeals')
+        .doc(plannedMealId)
+        .update({'status': 'committed'});
+  }
+
+  Future<void> removePlannedMeal(String plannedMealId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    plannedMeals.removeWhere((p) => p.id == plannedMealId);
+    notifyListeners();
+
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('plannedmeals')
+        .doc(plannedMealId)
+        .delete();
+  }
+
+  Future<void> movePlannedMeal(String plannedMealId, DateTime newDay) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final d = _dateOnly(newDay);
+
+    // enforce 1 dinner per day
+    // final already = plannedMeals.any(
+    //   (p) =>
+    //       _dateOnly(p.day) == d && p.meal == 'dinner' && p.id != plannedMealId,
+    // );
+    // if (already) return;
+
+    final i = plannedMeals.indexWhere((p) => p.id == plannedMealId);
+    if (i == -1) return;
+
+    final updated = plannedMeals[i].copyWith(day: d);
+    plannedMeals[i] = updated;
+    notifyListeners();
+
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('plannedmeals')
+        .doc(plannedMealId)
+        .update({'day': Timestamp.fromDate(d)});
   }
 
   Future<Cookbook?> addCookbook({
