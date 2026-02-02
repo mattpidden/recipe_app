@@ -1,8 +1,12 @@
 import 'dart:ui';
 
+import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseFirestore;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:recipe_app/pages/add_cookbook_manually_page.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
@@ -13,6 +17,7 @@ import 'package:recipe_app/pages/home_page.dart';
 import 'package:recipe_app/pages/plan_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -45,10 +50,57 @@ class _MainPageState extends State<MainPage> {
     return credential.user!;
   }
 
+  Future<void> checkForUpdate(BuildContext context) async {
+    if (kDebugMode) return;
+    final snap = await FirebaseFirestore.instance
+        .collection('general')
+        .doc('general')
+        .get();
+
+    final int remoteBuild = snap.data()?['build'] ?? 0;
+
+    final info = await PackageInfo.fromPlatform();
+    final int localBuild = int.tryParse(info.buildNumber) ?? 0;
+    print("remote build $remoteBuild");
+    print("local build $localBuild");
+    if (remoteBuild > localBuild && context.mounted) {
+      showCupertinoDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Update Available'),
+          content: const Text(
+            'A newer version of the app is available in TestFlight. Please update to test the latest and greatest features!',
+          ),
+          actions: [
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Later'),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () async {
+                final uri = Uri.parse(
+                  'https://testflight.apple.com/join/zAdEaHde',
+                );
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+              child: const Text('Update'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     signInAnonymouslyIfNeeded();
+    checkForUpdate(context);
     // presentPaywallIfNeeded();
   }
 

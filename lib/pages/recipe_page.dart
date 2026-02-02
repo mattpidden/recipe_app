@@ -893,28 +893,28 @@ class _RecipePageState extends State<RecipePage> {
                             ),
                           ],
                         ),
-                        // const SizedBox(height: 8),
-                        // GestureDetector(
-                        //   onTap: () {
-                        //     notifier.deleteRecipe(widget.id);
-                        //     Navigator.pop(context);
-                        //   },
-                        //   child: Container(
-                        //     height: 50,
-                        //     padding: const EdgeInsets.symmetric(horizontal: 12),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () {
+                            notifier.deleteRecipe(widget.id);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            height: 50,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
 
-                        //     decoration: BoxDecoration(
-                        //       color: AppColors.errorColor,
-                        //       borderRadius: BorderRadius.circular(10),
-                        //     ),
-                        //     child: Center(
-                        //       child: Text(
-                        //         "Delete Recipe",
-                        //         style: TextStyles.smallHeadingSecondary,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ),
+                            decoration: BoxDecoration(
+                              color: AppColors.errorColor,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                "Delete Recipe",
+                                style: TextStyles.smallHeadingSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 32),
                       ],
                     ),

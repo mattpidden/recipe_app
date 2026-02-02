@@ -179,28 +179,28 @@ class _CookbookPageState extends State<CookbookPage> {
                               );
                             },
                           ),
-                        // const SizedBox(height: 8),
-                        // GestureDetector(
-                        //   onTap: () {
-                        //     notifier.deleteCookbook(widget.id);
-                        //     Navigator.pop(context);
-                        //   },
-                        //   child: Container(
-                        //     height: 50,
-                        //     padding: const EdgeInsets.symmetric(horizontal: 12),
+                        const SizedBox(height: 8),
+                        GestureDetector(
+                          onTap: () {
+                            notifier.deleteCookbook(widget.id);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            height: 50,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
 
-                        //     decoration: BoxDecoration(
-                        //       color: AppColors.errorColor,
-                        //       borderRadius: BorderRadius.circular(10),
-                        //     ),
-                        //     child: Center(
-                        //       child: Text(
-                        //         "Delete Cookbook",
-                        //         style: TextStyles.smallHeadingSecondary,
-                        //       ),
-                        //     ),
-                        //   ),
-                        // ),
+                            decoration: BoxDecoration(
+                              color: AppColors.errorColor,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                "Delete Cookbook",
+                                style: TextStyles.smallHeadingSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 32),
                       ],
                     ),
