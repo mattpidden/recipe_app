@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
@@ -26,7 +27,7 @@ class MainPage extends StatefulWidget {
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   int _selectedIndex = 1;
   bool _fabOpen = false;
   bool _hideNavBar = false;
@@ -35,6 +36,51 @@ class _MainPageState extends State<MainPage> {
   void _closeFab() => setState(() => _fabOpen = false);
 
   final _pages = const [HomePage(), CookbookAndRecipePage(), PlanPage()];
+
+  static const _channel = MethodChannel('share_bridge');
+
+  Future<String?> getSharedOnce() async {
+    final v = await _channel.invokeMethod<String>('getShared');
+    if (v != null && v.trim().isNotEmpty) {
+      await _channel.invokeMethod('clearShared');
+      return v.trim();
+    }
+    return null;
+  }
+
+  String? extractFirstUrl(String input) {
+    final regex = RegExp(r'(https?:\/\/[^\s]+)', caseSensitive: false);
+
+    final match = regex.firstMatch(input);
+    return match?.group(0);
+  }
+
+  Future<void> _checkShared() async {
+    print("Checking shared...");
+    final shared = await getSharedOnce();
+    if (shared == null) return;
+    final url = extractFirstUrl(shared);
+    if (url != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AddRecipeManuallyPage(importingUrl: shared),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Import failed - could not find URL',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
+    }
+    // _handleShared(shared);
+    print("SHARED INTO APP: ${shared}");
+  }
 
   void presentPaywallIfNeeded() async {
     final paywallResult = await RevenueCatUI.presentPaywallIfNeeded("pro");
@@ -99,9 +145,27 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     signInAnonymouslyIfNeeded();
-    checkForUpdate(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkForUpdate(context);
+      _checkShared();
+    });
     // presentPaywallIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkShared();
+    }
   }
 
   @override

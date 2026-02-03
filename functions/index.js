@@ -481,6 +481,123 @@ async function extractFromTikTok(url) {
     }
 }
 
+
+async function extractFromYouTube(url) {
+    try {
+        console.log("Extracting recipe from youtube");
+        // 1. set up api input json
+        const token = process.env.APIFY_API_KEY;
+        if (!token) throw new Error("Missing APIFY_API_KEY");
+        const details_api_input = {
+            "include_transcript_text": false,
+            "language": "en",
+            "max_videos": 1,
+            "youtube_url": url
+        };
+        const comments_api_input = {
+            "commentsSortBy": "0",
+            "maxComments": 3,
+            "startUrls": [
+                {
+                    "url": url
+                }
+            ]
+        }
+        const transcribe_api_input = {
+            "targetLanguage": "en",
+            "videoUrl": url
+        };
+
+        // 2. call api and wait for response (get api key from .env 'APIFY_API_KEY')
+        const details_endpoint = `https://api.apify.com/v2/acts/starvibe~youtube-video-transcript/run-sync-get-dataset-items?token=${token}`;
+        const comments_endpoint = `https://api.apify.com/v2/acts/streamers~youtube-comments-scraper/run-sync-get-dataset-items?token=${token}`;
+        const transcribe_endpoint = `https://api.apify.com/v2/acts/pintostudio~youtube-transcript-scraper/run-sync-get-dataset-items?token=${token}`;
+        console.log(`Calling APIFT endpoints`);
+        const [details_response, comments_response, transcribe_response] = await Promise.all([
+            axios.post(details_endpoint, details_api_input, {
+                headers: { "Content-Type": "application/json" },
+                timeout: 120000,
+            }),
+            axios.post(comments_endpoint, comments_api_input, {
+                headers: { "Content-Type": "application/json" },
+                timeout: 120000,
+            }),
+            axios.post(transcribe_endpoint, transcribe_api_input, {
+                headers: { "Content-Type": "application/json" },
+                timeout: 120000,
+            }),
+        ]);
+        const details_items = details_response.data;
+        const comments_items = comments_response.data;
+        const transcribe_items = transcribe_response.data;
+        console.log(`Got response from api`);
+        if (!Array.isArray(details_items)) {
+            throw new Error("Apify returned not an array.");
+        }
+        if (details_items.length === 0) {
+            throw new Error("Apify returned an empty array.");
+        }
+        if (!Array.isArray(comments_items)) {
+            throw new Error("Apify returned not an comments array.");
+        }
+        if (comments_items.length === 0) {
+            throw new Error("Apify returned an empty comments array.");
+        }
+        if (!Array.isArray(transcribe_items)) {
+            throw new Error("Apify returned not an transcribe_items.");
+        }
+        if (transcribe_items.length === 0) {
+            throw new Error("Apify returned an empty transcribe_items.");
+        }
+
+        // 3) Build LLM input from caption/transcript/author
+        const details = details_items[0];
+        const caption = (details.description ?? "").toString().trim();
+        const title = (details.title ?? "").toString().trim();
+        const author = (details.channel_name ?? "").toString().trim();
+
+        const ownerReply =
+            comments_items.find(c => c?.authorIsChannelOwner == true)?.comment ?? "";
+        const authorComment = ownerReply.toString().trim();
+
+        const transcript = (transcribe_items[0].data ?? "").toString().trim();
+
+        const inputForGemini = `
+            SOURCE: YouTube. If some ingredients or some steps are missing or incomplete, please fill in the gaps yourself, but put a note in the note section saying which parts you filled in. If there is no ingredients and no steps, then please return blank fields.
+            URL: ${url}
+            RECIPE AUTHOR / CHEF:: ${author || "Unknown"}
+
+            TITLE:
+            ${title || "(none)"}
+
+            CAPTION:
+            ${caption || "(none)"}
+
+            PINNED COMMENT:
+            ${authorComment || "(none)"}
+
+            TRANSCRIPT:
+            ${transcript || "(none)"}
+            `.trim();
+        console.log(`Calling gemini to fix recipe with input ${inputForGemini}`);
+
+        // 4. Call Gemini function
+        const geminiResponse = await callGeminiParser(inputForGemini);
+
+        // Extract the actual JSON from the Gemini response object
+        const parsed = safeJsonParse(geminiResponse.text);
+
+        if (!parsed) {
+            throw new Error("Gemini failed to return valid JSON for this URL.");
+        }
+
+        return parsed;
+    } catch (err) {
+        logger.error(`YouTube extraction failed for ${url}`, err);
+        throw new HttpsError("internal", `Could not extract recipe: ${err.message}`);
+    }
+}
+
 exports.recipeFromUrl = onCall({
     region: LOCATION,
     timeoutSeconds: 120, // Web scraping can take longer
@@ -502,6 +619,9 @@ exports.recipeFromUrl = onCall({
         } else if (domain.includes("tiktok")) {
             console.log("From tiktok");
             return await extractFromTikTok(urlString);
+        } else if (domain.includes("youtube") || domain.includes("youtu.be")) {
+            console.log("From youtube");
+            return await extractFromYouTube(urlString);
         } else {
             console.log("From website");
             // Default: Traditional Blog/Website

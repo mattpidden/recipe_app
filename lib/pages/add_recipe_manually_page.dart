@@ -24,11 +24,13 @@ class AddRecipeManuallyPage extends StatefulWidget {
   final bool openCamera;
   final bool editingRecipe;
   final Recipe? oldRecipe;
+  final String? importingUrl;
   const AddRecipeManuallyPage({
     super.key,
     this.openCamera = false,
     this.editingRecipe = false,
     this.oldRecipe,
+    this.importingUrl,
   });
 
   @override
@@ -86,6 +88,13 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _scanRecipeFromCookbook();
+      });
+    }
+    if (widget.importingUrl != null) {
+      _addFromURL.text = widget.importingUrl!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scanFromURL(_addFromURL.text);
       });
     }
     if (widget.editingRecipe && widget.oldRecipe != null) {
