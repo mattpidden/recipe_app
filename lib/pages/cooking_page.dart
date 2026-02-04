@@ -800,7 +800,14 @@ class _CookingModePageState extends State<CookingModePage> {
                     const SizedBox(width: 16),
                   ],
                 ),
-
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    "Your screen will not turn off whilst on this page",
+                    style: TextStyles.captionText,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Expanded(
                   child: steps.isEmpty
                       ? Center(

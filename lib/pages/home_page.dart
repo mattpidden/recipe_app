@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/components/recent_cooks.dart';
+import 'package:recipe_app/components/todays_planned_meal_card.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final void Function() navToPlan;
+  const HomePage({super.key, required this.navToPlan});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -33,6 +35,8 @@ class _HomePageState extends State<HomePage> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  TodaysPlannedMealCard(navToPlan: widget.navToPlan),
+                  const SizedBox(height: 8),
                   RecentCookedCard(),
                 ],
               ),

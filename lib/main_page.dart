@@ -28,14 +28,15 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
-  int _selectedIndex = 1;
+  int _selectedIndex = 0;
   bool _fabOpen = false;
   bool _hideNavBar = false;
 
   void _toggleFab() => setState(() => _fabOpen = !_fabOpen);
   void _closeFab() => setState(() => _fabOpen = false);
 
-  final _pages = const [HomePage(), CookbookAndRecipePage(), PlanPage()];
+  //final _pages = const [HomePage(), CookbookAndRecipePage(), PlanPage()];
+  late List<Widget> _pages;
 
   static const _channel = MethodChannel('share_bridge');
 
@@ -145,9 +146,26 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    print("init state");
     WidgetsBinding.instance.addObserver(this);
-    signInAnonymouslyIfNeeded();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    setState(() {
+      _pages = [
+        HomePage(
+          navToPlan: () {
+            print("cheese");
+            setState(() {
+              _selectedIndex = 2;
+            });
+          },
+        ),
+        CookbookAndRecipePage(),
+        PlanPage(),
+      ];
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await signInAnonymouslyIfNeeded();
+      if (!mounted) return;
+      print("addPostFrameCallback");
       checkForUpdate(context);
       _checkShared();
     });

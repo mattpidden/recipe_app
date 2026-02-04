@@ -197,6 +197,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       final isVideo =
           url.contains("tiktok.com") ||
           url.contains("youtube.com") ||
+          url.contains("youtu.be.com") ||
           url.contains("facebook.com") ||
           url.contains("instagram.com");
       _startLoaderMessages(isVideo: isVideo);
@@ -565,12 +566,16 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
 
     final msgs = <String>[
       isVideo ? "Watching video..." : "Reading recipe...",
-      "Finding ingredients...",
+      "Pulling out ingredients...",
       "Writing the steps...",
       "Seasoning for taste...",
       "Consulting Chef Bernath...",
+      "Making it foolproof...",
+      "Dishing up now...",
+      "Plating in your imagination...",
       "Almost there...",
       "Final touches...",
+      "Get ready to cook...",
     ];
 
     var i = 0;

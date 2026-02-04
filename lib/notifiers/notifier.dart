@@ -320,6 +320,29 @@ class Notifier extends ChangeNotifier {
     }
   }
 
+  DateTime get _today => _dateOnly(DateTime.now());
+
+  PlannedMeal? get plannedMealToday {
+    final d = _today;
+
+    PlannedMeal? committed;
+    PlannedMeal? suggested;
+
+    for (final pm in plannedMeals) {
+      if (_dateOnly(pm.day) != d) continue;
+
+      if (pm.status == PlannedMealStatus.committed) {
+        committed = pm;
+        break;
+      }
+      if (pm.status == PlannedMealStatus.suggested) {
+        suggested ??= pm;
+      }
+    }
+
+    return committed ?? suggested;
+  }
+
   Future<void> addToShoppingList(String item) async {
     final user = _auth.currentUser;
     if (user == null) return;

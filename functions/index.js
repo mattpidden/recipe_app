@@ -383,7 +383,7 @@ async function extractFromInstagramReels(url) {
         if (!parsed) {
             throw new Error("Gemini failed to return valid JSON for this URL.");
         }
-
+        console.log(`RECIPE: ${parsed}`);
         return parsed;
     } catch (err) {
         logger.error(`Reel extraction failed for ${url}`, err);
@@ -473,7 +473,7 @@ async function extractFromTikTok(url) {
         if (!parsed) {
             throw new Error("Gemini failed to return valid JSON for this URL.");
         }
-
+        console.log(`RECIPE: ${parsed}`);
         return parsed;
     } catch (err) {
         logger.error(`Reel extraction failed for ${url}`, err);
@@ -590,7 +590,7 @@ async function extractFromYouTube(url) {
         if (!parsed) {
             throw new Error("Gemini failed to return valid JSON for this URL.");
         }
-
+        console.log(`RECIPE: ${parsed}`);
         return parsed;
     } catch (err) {
         logger.error(`YouTube extraction failed for ${url}`, err);
@@ -604,7 +604,7 @@ exports.recipeFromUrl = onCall({
     memory: "1GiB"
 }, async (request) => {
     const urlString = (request.data?.url ?? "").toString().trim();
-    console.log("Extracting recipe from url");
+    console.log(`Extracting recipe from url ${urlString}`);
     if (!urlString) throw new HttpsError("invalid-argument", "Missing URL");
 
     try {
