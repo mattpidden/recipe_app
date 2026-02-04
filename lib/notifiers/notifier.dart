@@ -839,7 +839,6 @@ class Notifier extends ChangeNotifier {
 
   Future<Recipe?> addRecipe({
     required String title,
-    String? id,
     String? description,
     List<String> imageUrls = const [],
     List<Ingredient> ingredients = const [],
@@ -854,7 +853,6 @@ class Notifier extends ChangeNotifier {
     String? cookbookId,
     int? pageNumber,
     String? notes,
-    bool updateExisting = false,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return null;
@@ -887,7 +885,7 @@ class Notifier extends ChangeNotifier {
         .doc();
 
     final recipe = Recipe.create(
-      id: updateExisting ? id! : ref.id,
+      id: ref.id,
       title: cleanTitle,
       description: (description?.trim().isEmpty ?? true)
           ? null
@@ -913,12 +911,6 @@ class Notifier extends ChangeNotifier {
       notes: (notes?.trim().isEmpty ?? true) ? null : notes!.trim(),
     );
 
-    if (updateExisting) {
-      await ref.delete();
-      await updateRecipe(recipe);
-      return recipe;
-    }
-
     await ref.set(recipe.toFirestore());
 
     recipes = [...recipes, recipe];
@@ -927,24 +919,91 @@ class Notifier extends ChangeNotifier {
     return recipe;
   }
 
-  Future<void> updateRecipe(Recipe recipeToUpdate) async {
-    final recipeIndex = recipes.indexWhere((r) => r.id == recipeToUpdate.id);
-    if (recipeIndex == -1) return;
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return null;
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('recipes')
-          .doc(recipeToUpdate.id)
-          .update(recipeToUpdate.toFirestore());
-      recipes.removeAt(recipeIndex);
-      recipes.add(recipeToUpdate);
-      notifyListeners();
-    } catch (e) {
-      rethrow;
-    }
+  Future<Recipe?> updateRecipeFromForm({
+    required String id,
+    required String title,
+    String? description,
+    List<String> imageUrls = const [],
+    List<Ingredient> ingredients = const [],
+    List<String> steps = const [],
+    List<String> tags = const [],
+    int? timeMinutes,
+    int? servings,
+    String sourceType = 'manual',
+    String? sourceUrl,
+    String? sourceAuthor,
+    String? sourceTitle,
+    String? cookbookId,
+    int? pageNumber,
+    String? notes,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+
+    final idx = recipes.indexWhere((r) => r.id == id);
+    if (idx == -1) return null;
+
+    final old = recipes[idx];
+
+    final cleanTitle = title.trim();
+    if (cleanTitle.isEmpty) return null;
+
+    final cleanImages = imageUrls
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .toList();
+    final cleanTags = tags
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+    final cleanSteps = steps
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final cleanIngredients = ingredients
+        .where((i) => i.raw.trim().isNotEmpty)
+        .toList();
+
+    final updated = old.copyWith(
+      title: cleanTitle,
+      description: (description?.trim().isEmpty ?? true)
+          ? null
+          : description!.trim(),
+      imageUrls: cleanImages,
+      ingredients: cleanIngredients,
+      steps: cleanSteps,
+      tags: cleanTags,
+      timeMinutes: timeMinutes,
+      servings: servings,
+      sourceType: sourceType,
+      sourceUrl: (sourceUrl?.trim().isEmpty ?? true) ? null : sourceUrl!.trim(),
+      sourceAuthor: (sourceAuthor?.trim().isEmpty ?? true)
+          ? null
+          : sourceAuthor!.trim(),
+      sourceTitle: (sourceTitle?.trim().isEmpty ?? true)
+          ? null
+          : sourceTitle!.trim(),
+      cookbookId: (cookbookId?.trim().isEmpty ?? true)
+          ? null
+          : cookbookId!.trim(),
+      pageNumber: pageNumber,
+      notes: (notes?.trim().isEmpty ?? true) ? null : notes!.trim(),
+      updatedAt: DateTime.now(),
+    );
+
+    // optimistic local update
+    recipes[idx] = updated;
+    notifyListeners();
+
+    // IMPORTANT: don't overwrite createdAt / cookCount etc; using update() is safest
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('recipes')
+        .doc(id)
+        .update(updated.toFirestore());
+
+    return updated;
   }
 
   Future<void> deleteRecipe(String recipeId) async {

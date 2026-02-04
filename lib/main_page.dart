@@ -31,6 +31,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   int _selectedIndex = 0;
   bool _fabOpen = false;
   bool _hideNavBar = false;
+  String? _pendingShared;
+  bool _pushed = false;
 
   void _toggleFab() => setState(() => _fabOpen = !_fabOpen);
   void _closeFab() => setState(() => _fabOpen = false);
@@ -62,13 +64,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     if (shared == null) return;
     final url = extractFirstUrl(shared);
     if (url != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AddRecipeManuallyPage(importingUrl: shared),
-        ),
-      );
+      _pendingShared = url;
+      _pushed = false;
+      if (mounted) setState(() {});
+      print("SHARED INTO APP: ${shared}");
     } else {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -79,9 +80,33 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         ),
       );
     }
-    // _handleShared(shared);
-    print("SHARED INTO APP: ${shared}");
   }
+
+  // Future<void> _checkShared() async {
+  //   print("Checking shared...");
+  //   final shared = await getSharedOnce();
+  //   if (shared == null) return;
+  //   final url = extractFirstUrl(shared);
+  //   if (url != null) {
+  //     Navigator.push(
+  //       context,
+  //       MaterialPageRoute(
+  //         builder: (_) => AddRecipeManuallyPage(importingUrl: shared),
+  //       ),
+  //     );
+  //   } else {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(
+  //         content: Text(
+  //           'Import failed - could not find URL',
+  //           style: TextStyles.smallHeadingSecondary,
+  //         ),
+  //         backgroundColor: AppColors.primaryColour,
+  //       ),
+  //     );
+  //   }
+  //   print("SHARED INTO APP: ${shared}");
+  // }
 
   void presentPaywallIfNeeded() async {
     final paywallResult = await RevenueCatUI.presentPaywallIfNeeded("pro");
@@ -147,23 +172,21 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     print("init state");
+    signInAnonymouslyIfNeeded();
     WidgetsBinding.instance.addObserver(this);
-    setState(() {
-      _pages = [
-        HomePage(
-          navToPlan: () {
-            print("cheese");
-            setState(() {
-              _selectedIndex = 2;
-            });
-          },
-        ),
-        CookbookAndRecipePage(),
-        PlanPage(),
-      ];
-    });
+
+    _pages = [
+      HomePage(
+        navToPlan: () {
+          setState(() {
+            _selectedIndex = 2;
+          });
+        },
+      ),
+      CookbookAndRecipePage(),
+      PlanPage(),
+    ];
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await signInAnonymouslyIfNeeded();
       if (!mounted) return;
       print("addPostFrameCallback");
       checkForUpdate(context);
@@ -174,7 +197,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    // TODO: implement dispose
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -192,6 +214,21 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
+          if (_pendingShared != null && !_pushed) {
+            _pushed = true;
+            final shared = _pendingShared!;
+            _pendingShared = null;
+
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                  builder: (_) => AddRecipeManuallyPage(importingUrl: shared),
+                ),
+              );
+            });
+          }
+
           return Scaffold(
             body: Stack(
               children: [

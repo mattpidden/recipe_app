@@ -243,28 +243,29 @@ class _RecipePageState extends State<RecipePage> {
                                       loading = true;
                                     });
                                     try {
-                                      await notifier.updateRecipe(
-                                        recipe.copyWith(
-                                          ingredients: recipe.ingredients
-                                              .map(
-                                                (i) => Ingredient(
-                                                  raw: i.raw,
-                                                  unit: i.unit,
-                                                  item: i.item,
-                                                  notes: i.notes,
-                                                  quantity:
-                                                      ((i.quantity ?? 0) *
-                                                              _scale) ==
-                                                          0
-                                                      ? null
-                                                      : (i.quantity ?? 0) *
-                                                            _scale,
-                                                ),
-                                              )
-                                              .toList(),
-                                          servings: _currentServings,
-                                        ),
+                                      await notifier.updateRecipeFromForm(
+                                        id: recipe.id,
+                                        title: recipe.title,
+                                        ingredients: recipe.ingredients
+                                            .map(
+                                              (i) => Ingredient(
+                                                raw: i.raw,
+                                                unit: i.unit,
+                                                item: i.item,
+                                                notes: i.notes,
+                                                quantity:
+                                                    ((i.quantity ?? 0) *
+                                                            _scale) ==
+                                                        0
+                                                    ? null
+                                                    : (i.quantity ?? 0) *
+                                                          _scale,
+                                              ),
+                                            )
+                                            .toList(),
+                                        servings: _currentServings,
                                       );
+
                                       setState(() {
                                         modified = false;
                                         _scale = 1;

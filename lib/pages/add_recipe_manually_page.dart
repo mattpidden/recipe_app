@@ -753,33 +753,58 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
           ? <String>[]
           : await _uploadImagesAndGetUrls(_images);
 
-      final savedRecipe = await notifier.addRecipe(
-        title: title,
-        id: widget.editingRecipe ? widget.oldRecipe!.id : null,
-        description: _description.text.trim().isEmpty
-            ? null
-            : _description.text.trim(),
-        imageUrls: imageUrls,
-        ingredients: _ingredients,
-        steps: steps,
-        tags: _tags,
-        timeMinutes: int.tryParse(_timeMinutes.text),
-        servings: int.tryParse(_servings.text),
-        sourceType: _sourceType,
-        sourceUrl: _sourceUrl.text.trim().isEmpty
-            ? null
-            : _sourceUrl.text.trim(),
-        sourceAuthor: _sourceAuthor.text.trim().isEmpty
-            ? null
-            : _sourceAuthor.text.trim(),
-        sourceTitle: _sourceTitle.text.trim().isEmpty
-            ? null
-            : _sourceTitle.text.trim(),
-        cookbookId: _selectedCookbookId,
-        pageNumber: int.tryParse(_pageNumber.text),
-        notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
-        updateExisting: widget.editingRecipe,
-      );
+      final savedRecipe = widget.editingRecipe
+          ? await notifier.updateRecipeFromForm(
+              id: widget.oldRecipe!.id,
+              title: title,
+              description: _description.text.trim().isEmpty
+                  ? null
+                  : _description.text.trim(),
+              imageUrls: imageUrls,
+              ingredients: _ingredients,
+              steps: steps,
+              tags: _tags,
+              timeMinutes: int.tryParse(_timeMinutes.text),
+              servings: int.tryParse(_servings.text),
+              sourceType: _sourceType,
+              sourceUrl: _sourceUrl.text.trim().isEmpty
+                  ? null
+                  : _sourceUrl.text.trim(),
+              sourceAuthor: _sourceAuthor.text.trim().isEmpty
+                  ? null
+                  : _sourceAuthor.text.trim(),
+              sourceTitle: _sourceTitle.text.trim().isEmpty
+                  ? null
+                  : _sourceTitle.text.trim(),
+              cookbookId: _selectedCookbookId,
+              pageNumber: int.tryParse(_pageNumber.text),
+              notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+            )
+          : await notifier.addRecipe(
+              title: title,
+              description: _description.text.trim().isEmpty
+                  ? null
+                  : _description.text.trim(),
+              imageUrls: imageUrls,
+              ingredients: _ingredients,
+              steps: steps,
+              tags: _tags,
+              timeMinutes: int.tryParse(_timeMinutes.text),
+              servings: int.tryParse(_servings.text),
+              sourceType: _sourceType,
+              sourceUrl: _sourceUrl.text.trim().isEmpty
+                  ? null
+                  : _sourceUrl.text.trim(),
+              sourceAuthor: _sourceAuthor.text.trim().isEmpty
+                  ? null
+                  : _sourceAuthor.text.trim(),
+              sourceTitle: _sourceTitle.text.trim().isEmpty
+                  ? null
+                  : _sourceTitle.text.trim(),
+              cookbookId: _selectedCookbookId,
+              pageNumber: int.tryParse(_pageNumber.text),
+              notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+            );
 
       if (!mounted) return;
       if (savedRecipe == null) return;
