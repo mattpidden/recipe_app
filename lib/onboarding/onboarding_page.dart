@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:recipe_app/main_page.dart';
@@ -17,6 +18,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   String? _selectedOutcome; // page 4
 
+  Future<User> signInAnonymouslyIfNeeded() async {
+    final auth = FirebaseAuth.instance;
+    if (auth.currentUser != null) {
+      return auth.currentUser!;
+    }
+    final credential = await auth.signInAnonymously();
+    return credential.user!;
+  }
+
   void _next() {
     if (_page < 3) {
       _controller.nextPage(
@@ -27,7 +37,16 @@ class _OnboardingPageState extends State<OnboardingPage> {
       // TODO: persist _selectedOutcome, then go to personalised AHA flow / paywall
       // Example:
       // Navigator.of(context).pushReplacementNamed('/paywall');
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    signInAnonymouslyIfNeeded();
   }
 
   @override
@@ -42,6 +61,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final bottomPad = media.padding.bottom;
 
     return Scaffold(
+      backgroundColor: AppColors.backgroundColour,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -67,21 +87,21 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   _OutcomePage(
                     headline: "Never lose a recipe again",
                     subhead:
-                        "Cookbooks, websites, reels, tiktoks — all saved in one place.",
+                        "Save recipes from anywhere - books, links, photos and social.",
+                    index: 1,
                     // Swap this placeholder for an image later
-                    hero: const _HeroBlob(icon: CupertinoIcons.book),
                   ),
                   _OutcomePage(
-                    headline: "Stop deciding what to cook",
+                    headline: "Always know what to cook",
                     subhead:
-                        "Get a confident suggestion for right now — or a plan for the week.",
-                    hero: const _HeroBlob(icon: CupertinoIcons.sparkles),
+                        "Made tells you what to cook right now — or plans the week for you.",
+                    index: 2,
                   ),
                   _OutcomePage(
-                    headline: "Cooking is effortless once you start",
+                    headline: "Just cook. We’ll handle the rest.",
                     subhead:
-                        "Step-by-step cooking mode with built-insmart timers, swaps and conversions.",
-                    hero: const _HeroBlob(icon: CupertinoIcons.timer),
+                        "Step-by-step cooking with smart timers, swaps and instant conversions.",
+                    index: 3,
                   ),
                   _PickOutcomePage(
                     selected: _selectedOutcome,
@@ -100,13 +120,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     width: double.infinity,
                     child: CupertinoButton.filled(
                       onPressed: (_page == 3 && _selectedOutcome == null)
-                          ? () {
-                              Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => const MainPage(),
-                                ),
-                              );
-                            }
+                          ? null
                           : _next,
                       child: Text(_page < 3 ? "Continue" : "Start"),
                     ),
@@ -125,12 +139,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
 class _OutcomePage extends StatelessWidget {
   final String headline;
   final String subhead;
-  final Widget hero;
+  final int index;
 
   const _OutcomePage({
     required this.headline,
     required this.subhead,
-    required this.hero,
+    required this.index,
   });
 
   @override
@@ -155,7 +169,7 @@ class _OutcomePage extends StatelessWidget {
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),
-                child: hero,
+                child: Image.asset("assets/$index.png"),
               ),
             ),
           ),
@@ -173,54 +187,49 @@ class _PickOutcomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = CupertinoTheme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "What do you want first?",
-            style: t.navLargeTitleTextStyle.copyWith(
-              fontSize: 30,
-              height: 1.05,
-              letterSpacing: -0.6,
-            ),
+            "What matters most to you right now?",
+            style: TextStyles.hugeTitle.copyWith(height: 1),
           ),
           const SizedBox(height: 10),
           Text(
             "Choose one. We’ll shape your first experiences around it.",
-            style: t.textStyle.copyWith(
+            style: TextStyle(
               fontSize: 16,
               height: 1.35,
-              color: CupertinoColors.secondaryLabel,
+              color: AppColors.primaryTextColour.withAlpha(100),
             ),
           ),
           const SizedBox(height: 16),
 
           _ChoiceCard(
-            title: "Never lose a recipe again",
+            title: "Never losing a recipe again",
             subtitle:
-                "Save books, links & screenshots. Find anything instantly.",
-            icon: CupertinoIcons.book,
+                "Save recipes from anywhere - books, links, photos and social.",
+            icon: Icons.book,
             selected: selected == "save",
             onTap: () => onSelect("save"),
           ),
           const SizedBox(height: 12),
           _ChoiceCard(
-            title: "Stop deciding what to cook",
+            title: "Always knowing what to cook",
             subtitle:
-                "Get a confident “cook now” and a weekly plan when you want it.",
-            icon: CupertinoIcons.sparkles,
+                "Made tells you what to cook right now — or plans the week for you.",
+            icon: Icons.calendar_month,
             selected: selected == "decide",
             onTap: () => onSelect("decide"),
           ),
           const SizedBox(height: 12),
           _ChoiceCard(
-            title: "Cooking is effortless once you start",
+            title: "To enjoy cooking more",
             subtitle:
-                "Guided steps, timers, swaps and conversions made simple.",
-            icon: CupertinoIcons.timer,
+                "Step-by-step cooking with smart timers, swaps and instant conversions.",
+            icon: Icons.timer,
             selected: selected == "cook",
             onTap: () => onSelect("cook"),
           ),
@@ -252,12 +261,12 @@ class _ChoiceCard extends StatelessWidget {
     final t = CupertinoTheme.of(context).textTheme;
 
     final bg = selected
-        ? CupertinoTheme.of(context).primaryColor.withOpacity(0.12)
-        : CupertinoColors.systemGrey6;
+        ? const Color.fromARGB(255, 223, 235, 226)
+        : Colors.white;
 
     final border = selected
-        ? CupertinoTheme.of(context).primaryColor.withOpacity(0.45)
-        : CupertinoColors.systemGrey4.withOpacity(0.35);
+        ? AppColors.primaryColour
+        : AppColors.backgroundColour;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -266,20 +275,18 @@ class _ChoiceCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: border, width: 1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: border, width: 2),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: CupertinoColors.systemGrey5,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, size: 22),
+            Icon(
+              icon,
+              size: 22,
+              color: selected
+                  ? AppColors.primaryColour
+                  : AppColors.disabledColor.withAlpha(155),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -298,18 +305,6 @@ class _ChoiceCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      if (selected)
-                        const Icon(
-                          CupertinoIcons.check_mark_circled_solid,
-                          size: 20,
-                        ),
-                      if (!selected)
-                        const Icon(
-                          CupertinoIcons.circle,
-                          size: 20,
-                          color: CupertinoColors.systemGrey2,
-                        ),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -355,38 +350,6 @@ class _Dots extends StatelessWidget {
           ),
         );
       }),
-    );
-  }
-}
-
-class _HeroBlob extends StatelessWidget {
-  final IconData icon;
-  const _HeroBlob({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1.08,
-      child: Container(
-        decoration: BoxDecoration(
-          color: CupertinoColors.systemGrey6,
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(
-            color: CupertinoColors.systemGrey4.withOpacity(0.35),
-          ),
-        ),
-        child: Center(
-          child: Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: CupertinoColors.systemGrey5,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Icon(icon, size: 46),
-          ),
-        ),
-      ),
     );
   }
 }
