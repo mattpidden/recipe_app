@@ -566,13 +566,14 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
 
     final msgs = <String>[
       isVideo ? "Watching video..." : "Reading recipe...",
-      "Pulling out ingredients...",
+      "Finding ingredients...",
+      "Calculating conversions...",
       "Writing the steps...",
       "Seasoning for taste...",
+      "Adjusting temperatures...",
       "Consulting Chef Bernath...",
       "Making it foolproof...",
-      "Dishing up now...",
-      "Plating in your imagination...",
+      "Dishing up...",
       "Almost there...",
       "Final touches...",
       "Get ready to cook...",

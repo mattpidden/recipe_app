@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:recipe_app/firebase_options.dart';
 import 'package:recipe_app/main_page.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
+import 'package:recipe_app/pages/onboarding_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/subscription/initalize.dart';
 
@@ -58,7 +59,7 @@ class MainApp extends StatelessWidget {
             color: AppColors.primaryColour,
           ),
         ),
-        home: const MainPage(),
+        home: const OnboardingPage(),
       ),
     );
   }
