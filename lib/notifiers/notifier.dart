@@ -240,6 +240,7 @@ class Notifier extends ChangeNotifier {
 
   Notifier() {
     _loadUnitSystemPreference();
+    print("notifier");
     _auth.authStateChanges().listen((user) {
       if (user != null) {
         refresh();
@@ -252,6 +253,7 @@ class Notifier extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    print("Refreshing data from Firestore...");
     final user = _auth.currentUser;
     if (user == null) {
       recipes = [];
@@ -818,6 +820,16 @@ class Notifier extends ChangeNotifier {
     final cookbookIndex = cookbooks.indexWhere((r) => r.id == cookbookId);
     if (cookbookIndex == -1) return;
     final cookbook = cookbooks.removeAt(cookbookIndex);
+    // loop over recipes, and remove cookbookId from any that have it (don’t delete the recipes, just unassign from deleted cookbook)
+    for (Recipe recipe in recipes) {
+      if (recipe.cookbookId == cookbookId) {
+        updateRecipeFromForm(
+          id: recipe.id,
+          title: recipe.title,
+          cookbookId: null,
+        );
+      }
+    }
     notifyListeners();
 
     try {
@@ -1011,6 +1023,10 @@ class Notifier extends ChangeNotifier {
     final recipeIndex = recipes.indexWhere((r) => r.id == recipeId);
     if (recipeIndex == -1) return;
     final recipe = recipes.removeAt(recipeIndex);
+    // remove recipe from any cookbooks.recipes list that might contain it
+    for (Cookbook c in cookbooks) {
+      c.recipes.removeWhere((r) => r.id == recipeId);
+    }
     notifyListeners();
 
     try {

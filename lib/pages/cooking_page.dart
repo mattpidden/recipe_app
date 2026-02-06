@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/pages/cooked_sheet.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-
 import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
@@ -746,7 +745,6 @@ class _CookingModePageState extends State<CookingModePage> {
     return hits.where((i) => seen.add(i.raw.toLowerCase())).toList();
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Consumer<Notifier>(

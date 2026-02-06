@@ -9,6 +9,7 @@ import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/onboarding/onboarding_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/subscription/initalize.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,12 +17,17 @@ void main() async {
   FirebaseAnalytics analytics = FirebaseAnalytics.instance;
   analytics.logAppOpen();
   await dotenv.load(fileName: ".env");
-  //initializeRevenueCat();
-  runApp(const MainApp());
+  initializeRevenueCat();
+  final prefs = await SharedPreferences.getInstance();
+  final showDemo = prefs.getBool("demo_done") ?? false;
+  runApp(MainApp(showDemo: !showDemo));
 }
 
 class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+  final bool showDemo;
+  const MainApp({super.key, required this.showDemo});
+
+  void setSharedPrefs() async {}
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +65,7 @@ class MainApp extends StatelessWidget {
             color: AppColors.primaryColour,
           ),
         ),
-        home: const OnboardingPage(),
+        home: showDemo ? OnboardingPage() : MainPage(),
       ),
     );
   }

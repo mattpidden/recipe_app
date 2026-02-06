@@ -54,7 +54,7 @@ class _PlanPageState extends State<PlanPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return _RecipePickerSheet(recipes: notifier.recipes);
+        return RecipePickerSheet(recipes: notifier.recipes);
       },
     );
 
@@ -231,7 +231,7 @@ class _PlanPageState extends State<PlanPage> {
                                               const SizedBox(height: 4),
 
                                               if (meals.isEmpty)
-                                                _EmptyDayRow(
+                                                EmptyDayRow(
                                                   onAdd: () =>
                                                       _pickRecipeAndAddForDay(
                                                         context,
@@ -278,7 +278,7 @@ class _PlanPageState extends State<PlanPage> {
                                                             child: Opacity(
                                                               opacity: 0.95,
                                                               child:
-                                                                  _PlannedMealRow(
+                                                                  PlannedMealRow(
                                                                     recipe:
                                                                         recipe,
                                                                     reason: pm
@@ -297,7 +297,7 @@ class _PlanPageState extends State<PlanPage> {
                                                             Opacity(
                                                               opacity: 0.35,
                                                               child:
-                                                                  _PlannedMealRow(
+                                                                  PlannedMealRow(
                                                                     recipe:
                                                                         recipe,
                                                                     reason: pm
@@ -310,7 +310,7 @@ class _PlanPageState extends State<PlanPage> {
                                                                         () {},
                                                                   ),
                                                             ),
-                                                        child: _PlannedMealRow(
+                                                        child: PlannedMealRow(
                                                           recipe: recipe,
                                                           reason: pm.reason,
                                                           status: pm.status,
@@ -421,9 +421,9 @@ class _PlanToggle extends StatelessWidget {
   }
 }
 
-class _EmptyDayRow extends StatelessWidget {
+class EmptyDayRow extends StatelessWidget {
   final VoidCallback onAdd;
-  const _EmptyDayRow({required this.onAdd});
+  const EmptyDayRow({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -456,14 +456,14 @@ class _EmptyDayRow extends StatelessWidget {
   }
 }
 
-class _PlannedMealRow extends StatelessWidget {
+class PlannedMealRow extends StatelessWidget {
   final dynamic recipe; // Recipe
   final String? reason;
   final PlannedMealStatus status;
   final VoidCallback? onAccept;
   final VoidCallback? onDelete;
 
-  const _PlannedMealRow({
+  const PlannedMealRow({
     required this.recipe,
     required this.reason,
     required this.status,
@@ -685,15 +685,15 @@ class _ShoppingListCard extends StatelessWidget {
   }
 }
 
-class _RecipePickerSheet extends StatefulWidget {
+class RecipePickerSheet extends StatefulWidget {
   final List<dynamic> recipes; // List<Recipe>
-  const _RecipePickerSheet({required this.recipes});
+  const RecipePickerSheet({required this.recipes});
 
   @override
-  State<_RecipePickerSheet> createState() => _RecipePickerSheetState();
+  State<RecipePickerSheet> createState() => RecipePickerSheetState();
 }
 
-class _RecipePickerSheetState extends State<_RecipePickerSheet> {
+class RecipePickerSheetState extends State<RecipePickerSheet> {
   String q = '';
 
   @override

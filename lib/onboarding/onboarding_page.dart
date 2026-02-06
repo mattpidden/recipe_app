@@ -2,7 +2,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:recipe_app/main_page.dart';
+import 'package:flutter/services.dart';
+import 'package:recipe_app/onboarding/recipe_pack_demo_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
@@ -41,17 +42,19 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   void _next() {
     if (_page < 3) {
+      HapticFeedback.lightImpact();
       _controller.nextPage(
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
       );
     } else {
-      // TODO: persist _selectedOutcome, then go to personalised AHA flow / paywall
-      // Example:
-      // Navigator.of(context).pushReplacementNamed('/paywall');
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const MainPage()));
+      HapticFeedback.lightImpact();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) =>
+              RecipePackDemoPage(nextPage: _selectedOutcome ?? "save"),
+        ),
+      );
     }
   }
 
@@ -131,7 +134,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   SizedBox(
                     width: double.infinity,
                     child: CupertinoButton.filled(
-                      onPressed: (_page == 3 && _selectedOutcome == null)
+                      onPressed: (_page >= 3 && _selectedOutcome == null)
                           ? null
                           : _next,
                       child: Text(_page < 3 ? "Continue" : "Start"),
@@ -282,7 +285,10 @@ class _ChoiceCard extends StatelessWidget {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(

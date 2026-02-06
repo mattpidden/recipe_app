@@ -49,15 +49,6 @@ class _RecipesListPageState extends State<RecipesListPage> {
         List<Recipe> filtered = notifier.recipes
             .where((r) => notifier.matchRecipes(r, _q, _qTags))
             .toList();
-        final filteredCookbooks = notifier.cookbooks
-            .where((r) => notifier.matchCookbooks(r, _q, _qTags))
-            .toList();
-        filtered.addAll(
-          filteredCookbooks.map((c) => c.recipes).expand((e) => e),
-        );
-        // filtered recipes might now have recipes with same ids, that needs filtering out
-        final seen = <String>{};
-        filtered = filtered.where((r) => seen.add(r.id)).toList();
 
         final listOfUsedTags = notifier.recipes
             .map((r) => r.tags)

@@ -15,14 +15,17 @@ class _AuthErrorPageState extends State<AuthErrorPage> {
     return const Scaffold(
       backgroundColor: AppColors.primaryColour,
       body: SafeArea(
-        child: Column(
-          children: [
-            const Text(
-              "There was an error authenticating you",
-              style: TextStyles.hugeTitleSecondary,
-              maxLines: 2,
-            ),
-          ],
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text(
+                "There was an error authenticating you. Please try again.",
+                style: TextStyles.smallHeadingSecondary,
+                maxLines: 2,
+              ),
+            ],
+          ),
         ),
       ),
     );

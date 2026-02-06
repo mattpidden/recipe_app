@@ -48,9 +48,9 @@ class CookbookCard extends StatelessWidget {
                       ? CachedNetworkImage(
                           imageUrl: imageUrl!,
                           fit: BoxFit.cover,
-                          fadeInDuration: const Duration(milliseconds: 150),
+                          fadeInDuration: const Duration(milliseconds: 50),
                           placeholder: (_, __) =>
-                              Container(color: AppColors.accentColour1),
+                              Container(color: AppColors.backgroundColour),
                           errorWidget: (_, __, ___) => Container(
                             color: AppColors.accentColour1,
                             child: Center(

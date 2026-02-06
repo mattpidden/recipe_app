@@ -18,6 +18,7 @@ import 'package:recipe_app/pages/home_page.dart';
 import 'package:recipe_app/pages/plan_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MainPage extends StatefulWidget {
@@ -81,32 +82,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       );
     }
   }
-
-  // Future<void> _checkShared() async {
-  //   print("Checking shared...");
-  //   final shared = await getSharedOnce();
-  //   if (shared == null) return;
-  //   final url = extractFirstUrl(shared);
-  //   if (url != null) {
-  //     Navigator.push(
-  //       context,
-  //       MaterialPageRoute(
-  //         builder: (_) => AddRecipeManuallyPage(importingUrl: shared),
-  //       ),
-  //     );
-  //   } else {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(
-  //         content: Text(
-  //           'Import failed - could not find URL',
-  //           style: TextStyles.smallHeadingSecondary,
-  //         ),
-  //         backgroundColor: AppColors.primaryColour,
-  //       ),
-  //     );
-  //   }
-  //   print("SHARED INTO APP: ${shared}");
-  // }
 
   void presentPaywallIfNeeded() async {
     final paywallResult = await RevenueCatUI.presentPaywallIfNeeded("pro");
@@ -189,10 +164,16 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       print("addPostFrameCallback");
+      _setSharedPrefs();
       checkForUpdate(context);
       _checkShared();
     });
-    // presentPaywallIfNeeded();
+    presentPaywallIfNeeded();
+  }
+
+  void _setSharedPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("demo_done", true);
   }
 
   @override

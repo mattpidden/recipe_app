@@ -14,6 +14,7 @@ import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/components/inputs.dart';
+import 'package:recipe_app/main_page.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/recipe_page.dart';
 import 'package:recipe_app/styles/colours.dart';
@@ -25,10 +26,12 @@ class AddRecipeManuallyPage extends StatefulWidget {
   final bool editingRecipe;
   final Recipe? oldRecipe;
   final String? importingUrl;
+  final bool demo;
   const AddRecipeManuallyPage({
     super.key,
     this.openCamera = false,
     this.editingRecipe = false,
+    this.demo = false,
     this.oldRecipe,
     this.importingUrl,
   });
@@ -828,7 +831,15 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
         ),
       );
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+        if (widget.demo) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => MainPage()),
+          );
+        }
+      }
     }
   }
 
@@ -851,7 +862,18 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                   Row(
                     children: [
                       IconButton(
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () {
+                          if (widget.demo) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => MainPage(),
+                              ),
+                            );
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
                         icon: Icon(
                           Icons.arrow_back,
                           color: AppColors.primaryTextColour,
