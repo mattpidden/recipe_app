@@ -122,7 +122,7 @@ class _CookbookPageState extends State<CookbookPage> {
                                           child: Text(
                                             cookbook.description ?? "",
                                             style: TextStyles.inputText,
-                                            maxLines: 6,
+                                            maxLines: 100,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),

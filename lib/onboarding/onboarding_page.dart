@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -20,11 +21,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   Future<User> signInAnonymouslyIfNeeded() async {
     final auth = FirebaseAuth.instance;
+
+    User user;
     if (auth.currentUser != null) {
-      return auth.currentUser!;
+      user = auth.currentUser!;
+    } else {
+      final credential = await auth.signInAnonymously();
+      user = credential.user!;
     }
-    final credential = await auth.signInAnonymously();
-    return credential.user!;
+
+    // Call the Cloud Function after auth
+    final callable = FirebaseFunctions.instance.httpsCallable(
+      'grantEitanStarterPackToUser',
+    );
+    await callable.call(<String, dynamic>{'uid': user.uid});
+
+    return user;
   }
 
   void _next() {
@@ -87,14 +99,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   _OutcomePage(
                     headline: "Never lose a recipe again",
                     subhead:
-                        "Save recipes from anywhere - books, links, photos and social.",
+                        "Save recipes from anywhere: cookbooks, websites, photos and social media.",
                     index: 1,
                     // Swap this placeholder for an image later
                   ),
                   _OutcomePage(
                     headline: "Always know what to cook",
                     subhead:
-                        "Made tells you what to cook right now — or plans the week for you.",
+                        "Made tells you what to cook right now, or plans the week for you.",
                     index: 2,
                   ),
                   _OutcomePage(
@@ -226,7 +238,7 @@ class _PickOutcomePage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _ChoiceCard(
-            title: "To enjoy cooking more",
+            title: "Cooking without friction",
             subtitle:
                 "Step-by-step cooking with smart timers, swaps and instant conversions.",
             icon: Icons.timer,

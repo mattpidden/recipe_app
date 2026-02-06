@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:recipe_app/pages/recipe_page.dart';
 import 'package:recipe_app/styles/colours.dart';
@@ -44,7 +45,22 @@ class RecipeCard extends StatelessWidget {
                 child: AspectRatio(
                   aspectRatio: 1,
                   child: imageUrl != null
-                      ? Image.network(imageUrl!, fit: BoxFit.cover)
+                      ? CachedNetworkImage(
+                          imageUrl: imageUrl!,
+                          fit: BoxFit.cover,
+                          fadeInDuration: const Duration(milliseconds: 150),
+                          placeholder: (_, __) =>
+                              Container(color: AppColors.accentColour1),
+                          errorWidget: (_, __, ___) => Container(
+                            color: AppColors.accentColour1,
+                            child: Center(
+                              child: Text(
+                                "No Image",
+                                style: TextStyles.bodyTextSecondary,
+                              ),
+                            ),
+                          ),
+                        )
                       : Container(
                           color: AppColors.accentColour1,
                           child: Center(

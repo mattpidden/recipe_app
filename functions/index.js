@@ -3,6 +3,8 @@ const { logger } = require("firebase-functions");
 const { GoogleGenAI, Type } = require("@google/genai");
 const axios = require("axios");
 const cheerio = require("cheerio");
+const admin = require("firebase-admin");
+admin.initializeApp();
 
 const PROJECT = process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
 const LOCATION = "europe-west2"; // keep consistent with your app + data residency
@@ -700,3 +702,128 @@ exports.substituteIngredient = onCall(
         return JSON.parse(resp.text);
     }
 );
+
+
+exports.grantEitanStarterPackToUser = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Please sign in.");
+    }
+
+    const PACK_ID = "eitan_starter";
+    const db = admin.firestore();
+
+    const uid = (request.data && request.data.uid) ? String(request.data.uid) : request.auth.uid;
+
+    // Optional safety: only allow granting to self unless admin
+    const isAdmin = !!request.auth.token?.admin;
+    if (!isAdmin && uid !== request.auth.uid) {
+        throw new HttpsError("permission-denied", "You can only grant packs to your own account.");
+    }
+
+    const packRef = db.collection("recipe_packs").doc(PACK_ID);
+    const packSnap = await packRef.get();
+    if (!packSnap.exists) {
+        throw new HttpsError("not-found", `Recipe pack '${PACK_ID}' not found.`);
+    }
+
+    const packData = packSnap.data() || {};
+
+    const userRef = db.collection("users").doc(uid);
+    const userSnap = await userRef.get();
+
+    // Ensure user doc exists
+    if (!userSnap.exists) {
+        await userRef.set(
+            {
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+        );
+    }
+
+    const cookbooksCol = userRef.collection("cookbooks");
+    const recipesCol = userRef.collection("recipes");
+
+    // Check if user already has this pack (by cookbook field "id" == PACK_ID)
+    const existingCookbookSnap = await cookbooksCol.where("id", "==", PACK_ID).limit(1).get();
+    if (!existingCookbookSnap.empty) {
+        const existingCookbookId = existingCookbookSnap.docs[0].id;
+        return {
+            ok: true,
+            alreadyHasPack: true,
+            cookbookDocId: existingCookbookId,
+            recipesCopied: 0,
+            recipesSkipped: 0,
+        };
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // Create cookbook doc (auto id) using pack fields + timestamps
+    const newCookbookRef = cookbooksCol.doc();
+
+    await newCookbookRef.set({
+        id: PACK_ID,
+        author: packData.author ?? "",
+        cookCount: packData.cookCount ?? 0,
+        coverImageUrl: packData.coverImageUrl ?? "",
+        lastCookedAt: packData.lastCookedAt ?? null,
+        title: packData.title ?? "Starter Pack",
+        createdAt: now,
+        updatedAt: now,
+        description: packData.description ?? "",
+    });
+
+    const cookbookDocId = newCookbookRef.id;
+
+    // Copy recipes from pack -> user, skipping any that already exist
+    const packRecipesSnap = await packRef.collection("recipes").get();
+
+    let copied = 0;
+    let skipped = 0;
+
+    let batch = db.batch();
+    let ops = 0;
+
+    for (const recipeDoc of packRecipesSnap.docs) {
+        const destRecipeRef = recipesCol.doc(recipeDoc.id);
+
+        const exists = await destRecipeRef.get();
+        if (exists.exists) {
+            skipped += 1;
+            continue;
+        }
+
+        batch.set(destRecipeRef, {
+            ...recipeDoc.data(),
+            cookbookId: cookbookDocId,
+            createdAt: now,
+            updatedAt: now,
+        });
+
+        copied += 1;
+        ops += 1;
+
+        // keep under 500 ops
+        if (ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+        }
+    }
+
+    if (ops > 0) {
+        await batch.commit();
+    }
+
+    // touch cookbook updatedAt after recipe copy
+    await newCookbookRef.set({ updatedAt: now }, { merge: true });
+
+    return {
+        ok: true,
+        alreadyHasPack: false,
+        cookbookDocId,
+        recipesCopied: copied,
+        recipesSkipped: skipped,
+    };
+});

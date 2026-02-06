@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/classes/cookbook.dart';
 import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/classes/unit_value.dart';
@@ -181,7 +182,10 @@ class _RecipePageState extends State<RecipePage> {
 
         final cookbook = recipe.cookbookId == null
             ? null
-            : notifier.cookbooks.singleWhere((c) => c.id == recipe.cookbookId);
+            : notifier.cookbooks
+                  .where((c) => c.id == recipe.cookbookId)
+                  .cast<Cookbook?>()
+                  .firstOrNull;
 
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
