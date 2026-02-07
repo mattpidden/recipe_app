@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:recipe_app/pages/add_cookbook_manually_page.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
@@ -34,6 +35,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _hideNavBar = false;
   String? _pendingShared;
   bool _pushed = false;
+  bool _hasPro = false;
+  bool _checkingAccess = true;
 
   void _toggleFab() => setState(() => _fabOpen = !_fabOpen);
   void _closeFab() => setState(() => _fabOpen = false);
@@ -147,7 +150,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     print("init state");
-    signInAnonymouslyIfNeeded();
     WidgetsBinding.instance.addObserver(this);
 
     _pages = [
@@ -161,14 +163,52 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       CookbookAndRecipePage(),
       PlanPage(),
     ];
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      print("addPostFrameCallback");
-      _setSharedPrefs();
-      checkForUpdate(context);
-      _checkShared();
+      await _bootstrap();
     });
-    presentPaywallIfNeeded();
+  }
+
+  Future<void> _bootstrap() async {
+    _setSharedPrefs();
+    await signInAnonymouslyIfNeeded();
+    await _checkEntitlement();
+    if (_hasPro) {
+      _checkShared();
+      checkForUpdate(context);
+    }
+  }
+
+  Future<void> _checkEntitlement() async {
+    try {
+      final customerInfo = await Purchases.getCustomerInfo();
+      final active = customerInfo.entitlements.active.containsKey(
+        "RecipeApp Pro",
+      );
+      print(customerInfo.entitlements.active.toString());
+      setState(() {
+        _hasPro = active;
+        _checkingAccess = false;
+      });
+
+      if (!active) {
+        _presentBlockingPaywall();
+      }
+    } catch (e) {
+      debugPrint("Entitlement check failed: $e");
+      setState(() => _checkingAccess = false);
+      _presentBlockingPaywall();
+    }
+  }
+
+  Future<void> _presentBlockingPaywall() async {
+    final offerings = await Purchases.getOfferings();
+    final offering = offerings.all["default"] ?? offerings.current;
+    final result = await RevenueCatUI.presentPaywall(offering: offering);
+    debugPrint("Paywall result: $result");
+
+    // Re-check entitlement after dismissal
+    await _checkEntitlement();
   }
 
   void _setSharedPrefs() async {
@@ -184,13 +224,38 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && _hasPro) {
       _checkShared();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingAccess) {
+      return const Scaffold(
+        backgroundColor: AppColors.backgroundColour,
+        body: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primaryColour,
+          ),
+        ),
+      );
+    }
+
+    if (!_hasPro) {
+      return const Scaffold(
+        backgroundColor: AppColors.backgroundColour,
+        body: Center(
+          child: Text(
+            "Upgrade to Pro and let us cook 👀",
+            style: TextStyles.smallHeading,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {

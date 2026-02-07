@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:recipe_app/components/recent_cooks.dart';
 import 'package:recipe_app/components/todays_planned_meal_card.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
@@ -15,6 +17,21 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  String appVersion = "";
+
+  Future<void> _getAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      appVersion = "${packageInfo.version} (${packageInfo.buildNumber})";
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _getAppVersion();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
@@ -38,6 +55,31 @@ class _HomePageState extends State<HomePage> {
                   TodaysPlannedMealCard(navToPlan: widget.navToPlan),
                   const SizedBox(height: 8),
                   RecentCookedCard(),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "App Version $appVersion Beta Testing",
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GestureDetector(
+                        onTap: () async {
+                          await RevenueCatUI.presentCustomerCenter();
+                        },
+                        child: Text(
+                          "Customer Center",
+                          style: TextStyle(color: Colors.blue, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
