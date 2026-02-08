@@ -63,28 +63,24 @@ class _RecipesListPageState extends State<RecipesListPage> {
             bottom: false,
             child: Column(
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: AppColors.primaryTextColour,
-                        ),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: AppColors.primaryTextColour,
                       ),
-                      const SizedBox(width: 4),
-                      const Expanded(
-                        child: Text(
-                          'All Recipes',
-                          style: TextStyles.pageTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'All Recipes',
+                        style: TextStyles.pageTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 GestureDetector(
                   onTap: () {

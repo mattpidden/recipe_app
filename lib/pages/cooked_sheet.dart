@@ -1,9 +1,4 @@
-import 'dart:math';
-
-import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/components/inputs.dart';
@@ -141,8 +136,9 @@ class CookedSheetState extends State<CookedSheet> {
                             },
                           );
 
-                          if (picked != null)
+                          if (picked != null) {
                             setState(() => _cookedAt = _dateOnly(picked));
+                          }
                         },
                         child: Container(
                           width: double.infinity,
@@ -239,6 +235,7 @@ class CookedSheetState extends State<CookedSheet> {
                                     occasion: _occasion.text,
                                     withWho: list,
                                     wouldMakeAgain: _wouldMakeAgain,
+                                    cookedAt: _cookedAt,
                                   );
                                   setState(() {
                                     saving = false;

@@ -39,7 +39,7 @@ class CookbookCard extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(10),
+                top: Radius.circular(12),
               ),
               child: SizedBox(
                 height: 165,

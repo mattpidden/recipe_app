@@ -11,6 +11,7 @@ import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
+import 'package:recipe_app/components/recent_cooked_card.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
 import 'package:recipe_app/pages/cookbook_page.dart';
@@ -874,6 +875,9 @@ class _RecipePageState extends State<RecipePage> {
                               ),
                               const SizedBox(height: 16),
                             ],
+
+                            RecentCookedCard(filterByRecipeID: recipe.id),
+                            const SizedBox(height: 16),
 
                             // Source + cookbook link
                             const Text('Source', style: TextStyles.subheading),
