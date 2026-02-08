@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/components/recipe_card.dart';
@@ -69,18 +70,25 @@ class _CookbookPageState extends State<CookbookPage> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(7),
-                                child: cookbook.coverImageUrl == null
-                                    ? const Center(
-                                        child: Icon(
-                                          Icons.menu_book,
-                                          color: AppColors.accentColour1,
-                                          size: 40,
-                                        ),
-                                      )
-                                    : Image.network(
-                                        cookbook.coverImageUrl!,
-                                        fit: BoxFit.cover,
+                                child: CachedNetworkImage(
+                                  imageUrl: cookbook.coverImageUrl ?? "",
+                                  fit: BoxFit.cover,
+                                  fadeInDuration: const Duration(
+                                    milliseconds: 50,
+                                  ),
+                                  placeholder: (_, __) => Container(
+                                    color: AppColors.backgroundColour,
+                                  ),
+                                  errorWidget: (_, __, ___) => Container(
+                                    color: AppColors.accentColour1,
+                                    child: Center(
+                                      child: Text(
+                                        "No Image",
+                                        style: TextStyles.bodyTextSecondary,
                                       ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -158,24 +166,17 @@ class _CookbookPageState extends State<CookbookPage> {
                             itemCount: cookbook.recipes.length,
                             gridDelegate:
                                 const SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: 170,
-
+                                  maxCrossAxisExtent: 200,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  mainAxisExtent:
-                                      250, // tweak to match  proportions
+                                  mainAxisExtent: 190,
                                 ),
                             itemBuilder: (context, index) {
                               final recipe = cookbook.recipes[index];
                               return InkWell(
                                 borderRadius: BorderRadius.circular(10),
                                 onTap: () {},
-                                child: RecipeCard(
-                                  id: recipe.id,
-                                  imageUrl: recipe.imageUrls.firstOrNull,
-                                  title: recipe.title,
-                                  description: recipe.description,
-                                ),
+                                child: RecipeCard(recipe: recipe),
                               );
                             },
                           ),

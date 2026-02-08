@@ -162,12 +162,10 @@ class _CookbookListPageState extends State<CookbookListPage> {
                             itemCount: filtered.length,
                             gridDelegate:
                                 const SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: 170,
-
+                                  maxCrossAxisExtent: 190,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  mainAxisExtent:
-                                      225, // tweak to match  proportions
+                                  mainAxisExtent: 225,
                                 ),
                             itemBuilder: (context, index) {
                               final cookbook = filtered[index];

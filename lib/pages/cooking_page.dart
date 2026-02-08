@@ -21,10 +21,12 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 class CookingModePage extends StatefulWidget {
   final String recipeId;
   final double scale;
+  final void Function() onCooked;
   const CookingModePage({
     super.key,
     required this.recipeId,
     required this.scale,
+    required this.onCooked,
   });
 
   @override
@@ -1326,7 +1328,8 @@ class _CookingModePageState extends State<CookingModePage> {
                                 context: context,
                                 isScrollControlled: true,
                                 backgroundColor: AppColors.backgroundColour,
-                                builder: (_) => CookedSheet(recipe: recipe),
+                                builder: (_) =>
+                                    CookedSheet(recipe: recipe, onSave: () {}),
                               );
 
                               Navigator.pop(context);

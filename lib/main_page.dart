@@ -1,6 +1,8 @@
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseFirestore;
+import 'package:confetti/confetti.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -37,6 +39,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _pushed = false;
   bool _hasPro = false;
   bool _checkingAccess = true;
+  late final ConfettiController _confettiController;
 
   void _toggleFab() => setState(() => _fabOpen = !_fabOpen);
   void _closeFab() => setState(() => _fabOpen = false);
@@ -163,6 +166,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       CookbookAndRecipePage(),
       PlanPage(),
     ];
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 1),
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _bootstrap();
@@ -209,6 +215,21 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
     // Re-check entitlement after dismissal
     await _checkEntitlement();
+    if (_hasPro) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        HapticFeedback.lightImpact();
+        _confettiController.play();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Welcome to Pro! Let us cook 👀',
+              style: TextStyles.smallHeadingSecondary,
+            ),
+            backgroundColor: AppColors.primaryColour,
+          ),
+        );
+      });
+    }
   }
 
   void _setSharedPrefs() async {
@@ -219,6 +240,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -269,7 +291,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
               if (!mounted) return;
               Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(
-                  builder: (_) => AddRecipeManuallyPage(importingUrl: shared),
+                  builder: (_) => AddRecipeManuallyPage(
+                    importingUrl: shared,
+                    popOnSave: false,
+                  ),
                 ),
               );
             });
@@ -383,7 +408,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => AddRecipeManuallyPage(),
+                                builder: (_) =>
+                                    AddRecipeManuallyPage(popOnSave: false),
                               ),
                             );
                           },
@@ -399,8 +425,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    AddRecipeManuallyPage(openCamera: true),
+                                builder: (_) => AddRecipeManuallyPage(
+                                  openCamera: true,
+                                  popOnSave: false,
+                                ),
                               ),
                             );
                           },
@@ -466,6 +494,23 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: ConfettiWidget(
+                    confettiController: _confettiController,
+                    blastDirection: pi / 2,
+                    emissionFrequency: 1,
+                    numberOfParticles: 10,
+                    gravity: 0.2,
+                    blastDirectionality: BlastDirectionality.explosive,
+                    colors: const [
+                      AppColors.primaryColour,
+                      Colors.blue,
+                      Colors.green,
+                      AppColors.accentColour1,
+                    ],
+                  ),
+                ),
               ],
             ),
             extendBody: true,

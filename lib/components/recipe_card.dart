@@ -1,22 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/pages/recipe_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
 class RecipeCard extends StatelessWidget {
-  final String id;
-  final String? imageUrl;
-  final String title;
-  final String? description;
+  final Recipe recipe;
 
-  const RecipeCard({
-    super.key,
-    required this.imageUrl,
-    required this.title,
-    required this.description,
-    required this.id,
-  });
+  const RecipeCard({super.key, required this.recipe});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +16,7 @@ class RecipeCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => RecipePage(id: id)),
+          MaterialPageRoute(builder: (_) => RecipePage(id: recipe.id)),
         );
       },
       child: Container(
@@ -36,68 +28,82 @@ class RecipeCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4.0, 4.0, 4.0, 0.0),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(10),
-                ),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl!,
-                          fit: BoxFit.cover,
-                          fadeInDuration: const Duration(milliseconds: 50),
-                          placeholder: (_, __) =>
-                              Container(color: AppColors.backgroundColour),
-                          errorWidget: (_, __, ___) => Container(
-                            color: AppColors.accentColour1,
-                            child: Center(
-                              child: Text(
-                                "No Image",
-                                style: TextStyles.bodyTextSecondary,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: AppColors.accentColour1,
-                          child: Center(
-                            child: Text(
-                              "No Image",
-                              style: TextStyles.bodyTextSecondary,
-                            ),
-                          ),
-                        ),
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(10),
+              ),
+              child: SizedBox(
+                height: 100,
+                width: double.infinity,
+                child: CachedNetworkImage(
+                  imageUrl: recipe.imageUrls.isNotEmpty
+                      ? recipe.imageUrls[0]
+                      : "",
+                  fit: BoxFit.cover,
+                  fadeInDuration: const Duration(milliseconds: 50),
+                  placeholder: (_, __) =>
+                      Container(color: AppColors.backgroundColour),
+                  errorWidget: (_, __, ___) => Container(
+                    color: AppColors.accentColour1,
+                    child: Center(
+                      child: Text(
+                        "No Image",
+                        style: TextStyles.bodyTextSecondary,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
 
             // Text content
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
-              child: Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyles.smallHeading,
-              ),
-            ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8.0, 0, 8, 8),
+                padding: const EdgeInsets.fromLTRB(8.0, 4, 8, 0),
                 child: Text(
-                  description ?? "-",
+                  recipe.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyles.bodyTextPrimary,
+                  style: TextStyles.smallHeading,
+                ),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  spacing: 8,
+
+                  children: [
+                    if (recipe.timeMinutes != null)
+                      _TagChip(text: '${recipe.timeMinutes} min'),
+                    ...recipe.tags.map((t) => _TagChip(text: t)),
+                  ],
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  final String text;
+  const _TagChip({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundColour,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(text, style: TextStyles.tinyTextPrimary),
     );
   }
 }

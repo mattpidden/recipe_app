@@ -140,7 +140,7 @@ class _PlanPageState extends State<PlanPage> {
                 Expanded(
                   child: SingleChildScrollView(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -349,13 +349,12 @@ class _PlanPageState extends State<PlanPage> {
                             ),
                           ],
 
-                          const SizedBox(height: 70),
+                          const SizedBox(height: 16 + 70 + 16),
                         ],
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
               ],
             ),
           ),

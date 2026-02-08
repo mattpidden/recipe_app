@@ -91,7 +91,7 @@ class _RecipesListPageState extends State<RecipesListPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => AddRecipeManuallyPage(),
+                        builder: (_) => AddRecipeManuallyPage(popOnSave: false),
                       ),
                     );
                   },
@@ -160,24 +160,17 @@ class _RecipesListPageState extends State<RecipesListPage> {
                             itemCount: filtered.length,
                             gridDelegate:
                                 const SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: 170,
-
+                                  maxCrossAxisExtent: 200,
                                   crossAxisSpacing: 12,
                                   mainAxisSpacing: 12,
-                                  mainAxisExtent:
-                                      250, // tweak to match  proportions
+                                  mainAxisExtent: 190,
                                 ),
                             itemBuilder: (context, index) {
                               final recipe = filtered[index];
                               return InkWell(
                                 borderRadius: BorderRadius.circular(10),
                                 onTap: () {},
-                                child: RecipeCard(
-                                  id: recipe.id,
-                                  imageUrl: recipe.imageUrls.firstOrNull,
-                                  title: recipe.title,
-                                  description: recipe.description,
-                                ),
+                                child: RecipeCard(recipe: recipe),
                               );
                             },
                           ),

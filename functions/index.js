@@ -827,3 +827,67 @@ exports.grantEitanStarterPackToUser = onCall(async (request) => {
         recipesSkipped: skipped,
     };
 });
+
+
+exports.recipeFromFridgeIngreds = onCall(
+    { region: LOCATION, timeoutSeconds: 30, memory: "512MiB" },
+    async (request) => {
+        if (!PROJECT) {
+            throw new HttpsError("failed-precondition", "Missing GCP project env.");
+        }
+
+        const input = request.data?.ingredients;
+
+        if (!input) {
+            throw new HttpsError(
+                "invalid-argument",
+                "Missing ingredients input"
+            );
+        }
+
+        // Accept either string or array from Flutter
+        const ingredientsText = Array.isArray(input)
+            ? input.map((i) => asString(i)).filter(Boolean).join(", ")
+            : asString(input).trim();
+
+        if (!ingredientsText) {
+            throw new HttpsError(
+                "invalid-argument",
+                "Ingredients input is empty"
+            );
+        }
+
+        const userPrompt = `
+            You are a professional chef helping a home cook.
+
+            INGREDIENTS AVAILABLE:
+            ${ingredientsText}
+
+            Task:
+            - Create ONE complete recipe using primarily the listed ingredients.
+            - You may suggest a small number of common pantry/fridge staples if needed (salt, oil, butter, pasta, rice, milk etc).
+            - Do NOT add exotic or hard-to-find ingredients.
+            - Keep the recipe realistic, tasty, and achievable at home.
+            - If quantities are unclear, make sensible assumptions.
+            - Prefer simple techniques.
+            - If a cuisine is specified, try to match the style of that cuisine.
+            - If no cuisine is specified, default to a simple, versatile style.
+
+            Return the recipe strictly in the required JSON schema.
+            `.trim();
+
+        const resp = await callGeminiParser(userPrompt);
+
+        const parsed = safeJsonParse(resp.text);
+        if (!parsed) {
+            throw new HttpsError(
+                "internal",
+                "Model did not return valid JSON"
+            );
+        }
+
+        console.log(`RECIPE: ${parsed}`);
+
+        return parsed;
+    }
+);

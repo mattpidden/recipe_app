@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:recipe_app/components/fridge_ai_recipe_card.dart';
 import 'package:recipe_app/components/recent_cooks.dart';
 import 'package:recipe_app/components/todays_planned_meal_card.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
@@ -38,49 +39,60 @@ class _HomePageState extends State<HomePage> {
       builder: (context, notifier, child) {
         return Scaffold(
           backgroundColor: AppColors.backgroundColour,
-          body: SingleChildScrollView(
-            child: SafeArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: const Text(
-                      "Home",
-                      style: TextStyles.hugeTitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+          body: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+
+            onTap: () {
+              FocusManager.instance.primaryFocus?.unfocus();
+            },
+            child: SingleChildScrollView(
+              child: SafeArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: const Text(
+                        "Home",
+                        style: TextStyles.hugeTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  TodaysPlannedMealCard(navToPlan: widget.navToPlan),
-                  const SizedBox(height: 8),
-                  RecentCookedCard(),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "App Version $appVersion Beta Testing",
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      GestureDetector(
-                        onTap: () async {
-                          await RevenueCatUI.presentCustomerCenter();
-                        },
-                        child: Text(
-                          "Customer Center",
-                          style: TextStyle(color: Colors.blue, fontSize: 12),
+                    TodaysPlannedMealCard(navToPlan: widget.navToPlan),
+                    const SizedBox(height: 8),
+                    FridgeAiRecipeCard(),
+                    const SizedBox(height: 8),
+
+                    RecentCookedCard(),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "App Version $appVersion Beta Testing",
+                          style: TextStyle(fontSize: 12),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            await RevenueCatUI.presentCustomerCenter();
+                          },
+                          child: Text(
+                            "Customer Center",
+                            style: TextStyle(color: Colors.blue, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16 + 70 + 16),
+                  ],
+                ),
               ),
             ),
           ),

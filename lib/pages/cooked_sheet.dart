@@ -1,4 +1,9 @@
+import 'dart:math';
+
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/components/inputs.dart';
@@ -8,7 +13,8 @@ import 'package:recipe_app/styles/text_styles.dart';
 
 class CookedSheet extends StatefulWidget {
   final Recipe recipe;
-  const CookedSheet({required this.recipe});
+  final void Function() onSave;
+  const CookedSheet({required this.recipe, required this.onSave});
 
   @override
   State<CookedSheet> createState() => CookedSheetState();
@@ -83,180 +89,195 @@ class CookedSheetState extends State<CookedSheet> {
               return SingleChildScrollView(
                 controller: scroll,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 48,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(30),
-                          borderRadius: BorderRadius.circular(999),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 48,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withAlpha(30),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'How was ${widget.recipe.title}?',
-                      style: TextStyles.pageTitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    _StarRow(
-                      rating: _rating,
-                      onChanged: (v) => setState(() => _rating = v),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Cooked date', style: TextStyles.subheading),
-                    GestureDetector(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _cookedAt,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 365),
+                      const SizedBox(height: 12),
+                      Text(
+                        'How was ${widget.recipe.title}?',
+                        style: TextStyles.pageTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      _StarRow(
+                        rating: _rating,
+                        onChanged: (v) => setState(() => _rating = v),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('Cooked date', style: TextStyles.subheading),
+                      GestureDetector(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _cookedAt,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: AppColors.primaryColour,
+                                    onPrimary: Colors.white,
+                                    surface: Colors.white,
+                                    onSurface: AppColors.primaryTextColour,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+
+                          if (picked != null)
+                            setState(() => _cookedAt = _dateOnly(picked));
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
                           ),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: ColorScheme.light(
-                                  primary: AppColors.primaryColour,
-                                  onPrimary: Colors.white,
-                                  surface: Colors.white,
-                                  onSurface: AppColors.primaryTextColour,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _fmtDate(_cookedAt),
+                                  style: TextStyles.inputedText,
                                 ),
                               ),
-                              child: child!,
-                            );
-                          },
-                        );
-
-                        if (picked != null)
-                          setState(() => _cookedAt = _dateOnly(picked));
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _fmtDate(_cookedAt),
-                                style: TextStyles.inputedText,
+                              Icon(
+                                Icons.calendar_today,
+                                size: 18,
+                                color: AppColors.primaryTextColour,
                               ),
-                            ),
-                            Icon(
-                              Icons.calendar_today,
-                              size: 18,
-                              color: AppColors.primaryTextColour,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
+                      const SizedBox(height: 8),
 
-                    const Text('Comments', style: TextStyles.subheading),
-                    Input(
-                      controller: _comment,
-                      maxLines: 3,
-                      hint:
-                          "e.g. First time cooking this recipe and everyone loved it!",
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Occasion', style: TextStyles.subheading),
-                    Input(
-                      hint: "e.g. Eitan's Birthday Dinner",
-                      controller: _occasion,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Who was there?', style: TextStyles.subheading),
-                    Input(
-                      hint: 'Comma separated (e.g. Matt, Sela)',
-                      controller: _withWho,
-                    ),
-                    const SizedBox(height: 8),
+                      const Text('Comments', style: TextStyles.subheading),
+                      Input(
+                        controller: _comment,
+                        maxLines: 3,
+                        hint:
+                            "e.g. First time cooking this recipe and everyone loved it!",
+                      ),
+                      const SizedBox(height: 8),
+                      const Text('Occasion', style: TextStyles.subheading),
+                      Input(
+                        hint: "e.g. Eitan's Birthday Dinner",
+                        controller: _occasion,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Who was there?',
+                        style: TextStyles.subheading,
+                      ),
+                      Input(
+                        hint: 'Comma separated (e.g. Matt, Sela)',
+                        controller: _withWho,
+                      ),
+                      const SizedBox(height: 8),
 
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Would make again',
-                            style: TextStyles.subheading,
-                          ),
-                        ),
-                        Switch(
-                          inactiveTrackColor: AppColors.backgroundColour,
-                          value: _wouldMakeAgain,
-                          onChanged: (v) => setState(() => _wouldMakeAgain = v),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-                    Consumer<Notifier>(
-                      builder: (context, notifier, _) {
-                        return GestureDetector(
-                          onTap: () async {
-                            setState(() {
-                              saving = true;
-                            });
-                            final list = _withWho.text
-                                .split(',')
-                                .map((s) => s.trim())
-                                .where((s) => s.isNotEmpty)
-                                .toList();
-
-                            await notifier.addCookedEvent(
-                              recipeId: widget.recipe.id,
-                              rating: _rating,
-                              comment: _comment.text,
-                              occasion: _occasion.text,
-                              withWho: list,
-                              wouldMakeAgain: _wouldMakeAgain,
-                            );
-                            setState(() {
-                              saving = false;
-                            });
-                            if (context.mounted) Navigator.pop(context);
-                          },
-                          child: Container(
-                            height: 54,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryColour,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Center(
-                              child: saving
-                                  ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: AppColors.secondaryTextColour,
-                                      ),
-                                    )
-                                  : Text(
-                                      'Save',
-                                      style: TextStyles.smallHeadingSecondary,
-                                    ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Would make again',
+                              style: TextStyles.subheading,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ],
+                          Switch(
+                            inactiveTrackColor: AppColors.backgroundColour,
+                            value: _wouldMakeAgain,
+                            onChanged: (v) =>
+                                setState(() => _wouldMakeAgain = v),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 8),
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Consumer<Notifier>(
+                            builder: (context, notifier, _) {
+                              return GestureDetector(
+                                onTap: () async {
+                                  setState(() {
+                                    saving = true;
+                                  });
+                                  final list = _withWho.text
+                                      .split(',')
+                                      .map((s) => s.trim())
+                                      .where((s) => s.isNotEmpty)
+                                      .toList();
+
+                                  await notifier.addCookedEvent(
+                                    recipeId: widget.recipe.id,
+                                    rating: _rating,
+                                    comment: _comment.text,
+                                    occasion: _occasion.text,
+                                    withWho: list,
+                                    wouldMakeAgain: _wouldMakeAgain,
+                                  );
+                                  setState(() {
+                                    saving = false;
+                                  });
+                                  widget.onSave();
+                                  if (context.mounted) Navigator.pop(context);
+                                },
+                                child: Container(
+                                  height: 54,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryColour,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Center(
+                                    child: saving
+                                        ? const SizedBox(
+                                            height: 18,
+                                            width: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color:
+                                                  AppColors.secondaryTextColour,
+                                            ),
+                                          )
+                                        : Text(
+                                            'Save',
+                                            style: TextStyles
+                                                .smallHeadingSecondary,
+                                          ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               );
             },

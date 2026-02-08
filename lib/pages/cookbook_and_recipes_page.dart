@@ -300,7 +300,7 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                           ),
                         ),
                         SizedBox(
-                          height: 245,
+                          height: 190,
                           child: filteredRecipes.isNotEmpty
                               ? ListView.separated(
                                   scrollDirection: Axis.horizontal,
@@ -315,12 +315,7 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                     return InkWell(
                                       borderRadius: BorderRadius.circular(10),
                                       onTap: () {},
-                                      child: RecipeCard(
-                                        id: recipe.id,
-                                        imageUrl: recipe.imageUrls.firstOrNull,
-                                        title: recipe.title,
-                                        description: recipe.description,
-                                      ),
+                                      child: RecipeCard(recipe: recipe),
                                     );
                                   },
                                 )
@@ -331,7 +326,9 @@ class _CookbookAndRecipePageState extends State<CookbookAndRecipePage> {
                                             context,
                                             MaterialPageRoute(
                                               builder: (_) =>
-                                                  AddRecipeManuallyPage(),
+                                                  AddRecipeManuallyPage(
+                                                    popOnSave: false,
+                                                  ),
                                             ),
                                           );
                                         }

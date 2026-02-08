@@ -441,7 +441,7 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
                             width: double.infinity,
                             padding: EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: AppColors.accentColour1,
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Center(
@@ -449,8 +449,8 @@ class _AddCookbookManuallyPageState extends State<AddCookbookManuallyPage> {
                                 textAlign: TextAlign.center,
                                 notifier.partnerCodes.contains(isbn!)
                                     ? "This cookbook is part of the Made's Chef Collab, so all recipes will be automatically uploaded with this cookbook!"
-                                    : "The author of this cookbook has not signed up to join Made's Chef Collab. Please reach out to your favourite cookbook authors and ask them to join the group.",
-                                style: TextStyles.smallHeadingSecondary,
+                                    : "The author of this cookbook has not signed up to join Made Chef Collab. Please reach out to your favourite cookbook authors and ask them to join the group.",
+                                style: TextStyles.smallHeading,
                               ),
                             ),
                           ),

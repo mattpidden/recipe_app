@@ -33,50 +33,39 @@ class CookbookCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
+        padding: const EdgeInsets.all(4.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4.0, 4.0, 4.0, 0.0),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(10),
-                ),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: imageUrl != null
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl!,
-                          fit: BoxFit.cover,
-                          fadeInDuration: const Duration(milliseconds: 50),
-                          placeholder: (_, __) =>
-                              Container(color: AppColors.backgroundColour),
-                          errorWidget: (_, __, ___) => Container(
-                            color: AppColors.accentColour1,
-                            child: Center(
-                              child: Text(
-                                "No Image",
-                                style: TextStyles.bodyTextSecondary,
-                              ),
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: AppColors.accentColour1,
-                          child: Center(
-                            child: Text(
-                              "No Image",
-                              style: TextStyles.bodyTextSecondary,
-                            ),
-                          ),
-                        ),
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(10),
+              ),
+              child: SizedBox(
+                height: 165,
+                width: double.infinity,
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl ?? "",
+                  fit: BoxFit.cover,
+                  fadeInDuration: const Duration(milliseconds: 50),
+                  placeholder: (_, __) =>
+                      Container(color: AppColors.backgroundColour),
+                  errorWidget: (_, __, ___) => Container(
+                    color: AppColors.accentColour1,
+                    child: Center(
+                      child: Text(
+                        "No Image",
+                        style: TextStyles.bodyTextSecondary,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
 
             // Text content
             Padding(
-              padding: const EdgeInsets.fromLTRB(8.0, 8, 8, 0),
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
               child: Text(
                 title,
                 maxLines: 1,
@@ -86,9 +75,9 @@ class CookbookCard extends StatelessWidget {
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8.0, 0, 8, 8),
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
                 child: Text(
-                  author ?? "-",
+                  author ?? "",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyles.bodyTextPrimary,

@@ -491,7 +491,7 @@ class _CookingModeDemoPageState extends State<CookingModeDemoPage> {
           TargetContent(
             align: ContentAlign.bottom,
             child: Text(
-              "Tap here to change the measurement units. You can choose between metric, imperial, or the original units from the recipe. Now try out all the features as if you were cooking for real!",
+              "Tap here to change the measurement units. You can choose between metric, imperial, or the original units from the recipe.",
               style: TextStyles.smallHeadingSecondary,
             ),
           ),
@@ -758,607 +758,666 @@ class _CookingModeDemoPageState extends State<CookingModeDemoPage> {
           backgroundColor: AppColors.backgroundColour,
           body: SafeArea(
             bottom: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        recipe.title,
-                        style: TextStyles.pageTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${_index + 1}/$total',
-                        style: TextStyles.bodyTextBoldAccent,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    "Your screen will not turn off whilst on this page",
-                    style: TextStyles.captionText,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: steps.isEmpty
-                      ? Center(
+                    Row(
+                      children: [
+                        const SizedBox(width: 16),
+                        Expanded(
                           child: Text(
-                            'No steps yet.',
-                            style: TextStyles.subheading,
+                            recipe.title,
+                            style: TextStyles.pageTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        )
-                      : PageView.builder(
-                          controller: _controller,
-                          itemCount: steps.length,
-                          onPageChanged: (i) => setState(() => _index = i),
-                          itemBuilder: (context, i) {
-                            final step = steps[i];
-                            final stepIngredients = _ingredientsForStep(
-                              step,
-                              recipe.ingredients,
-                            );
-
-                            final checklist = _makeChecklist(step);
-                            _checksByStep.putIfAbsent(
-                              i,
-                              () => List<bool>.filled(checklist.length, false),
-                            );
-
-                            final durations = _extractDurations(step);
-                            _ensureTimerDefaults(i, durations);
-
-                            final expanded = _showIngredientsByStep[i] ?? true;
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${_index + 1}/$total',
+                            style: TextStyles.bodyTextBoldAccent,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                      ],
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text(
+                        "Your screen will not turn off whilst on this page",
+                        style: TextStyles.captionText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: steps.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No steps yet.',
+                                style: TextStyles.subheading,
                               ),
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // header row
-                                    Row(
+                            )
+                          : PageView.builder(
+                              controller: _controller,
+                              itemCount: steps.length,
+                              onPageChanged: (i) => setState(() => _index = i),
+                              itemBuilder: (context, i) {
+                                final step = steps[i];
+                                final stepIngredients = _ingredientsForStep(
+                                  step,
+                                  recipe.ingredients,
+                                );
+
+                                final checklist = _makeChecklist(step);
+                                _checksByStep.putIfAbsent(
+                                  i,
+                                  () => List<bool>.filled(
+                                    checklist.length,
+                                    false,
+                                  ),
+                                );
+
+                                final durations = _extractDurations(step);
+                                _ensureTimerDefaults(i, durations);
+
+                                final expanded =
+                                    _showIngredientsByStep[i] ?? true;
+
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Container(
-                                          width: 34,
-                                          height: 34,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.accentColour1,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                          child: Center(
-                                            child: Text(
-                                              '${i + 1}',
-                                              style: TextStyles
-                                                  .smallHeadingSecondary,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            'Step ${i + 1}',
-                                            style: TextStyles.subheading,
-                                          ),
-                                        ),
-                                        if (durations.isNotEmpty) ...[
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 6,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: AppColors.backgroundColour,
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: Text(
-                                              _fmtShort(_remaining(i)),
-                                              style:
-                                                  TextStyles.bodyTextBoldAccent,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          GestureDetector(
-                                            onTap: () =>
-                                                _showTimerSheet(i, durations),
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 6,
-                                                  ),
+                                        // header row
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 34,
+                                              height: 34,
                                               decoration: BoxDecoration(
-                                                color: AppColors.primaryColour,
+                                                color: AppColors.accentColour1,
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                               ),
-                                              child: Row(
-                                                children: [
-                                                  const Icon(
-                                                    Icons.timer,
-                                                    size: 14,
-                                                    color: Colors.white,
-                                                  ),
-                                                  const SizedBox(width: 6),
-                                                  Text(
-                                                    (_timerRunningByStep[i] ??
-                                                            false)
-                                                        ? 'Running'
-                                                        : 'Timer',
-                                                    style: TextStyles
-                                                        .bodyTextBoldSecondary,
-                                                  ),
-                                                ],
+                                              child: Center(
+                                                child: Text(
+                                                  '${i + 1}',
+                                                  style: TextStyles
+                                                      .smallHeadingSecondary,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-
-                                    const SizedBox(height: 8),
-                                    Expanded(
-                                      child: SingleChildScrollView(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            // ✅ "You'll need" bar + inline expandable ingredients list
-                                            if (stepIngredients.isNotEmpty) ...[
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                'Step ${i + 1}',
+                                                style: TextStyles.subheading,
+                                              ),
+                                            ),
+                                            if (durations.isNotEmpty) ...[
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 6,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors
+                                                      .backgroundColour,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                ),
+                                                child: Text(
+                                                  _fmtShort(_remaining(i)),
+                                                  style: TextStyles
+                                                      .bodyTextBoldAccent,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
                                               GestureDetector(
-                                                onTap: () {
-                                                  setState(() {
-                                                    _showIngredientsByStep[i] =
-                                                        !(_showIngredientsByStep[i] ??
-                                                            false);
-                                                  });
-                                                },
+                                                onTap: () => _showTimerSheet(
+                                                  i,
+                                                  durations,
+                                                ),
                                                 child: Container(
-                                                  width: double.infinity,
                                                   padding:
                                                       const EdgeInsets.symmetric(
-                                                        horizontal: 12,
-                                                        vertical: 10,
+                                                        horizontal: 10,
+                                                        vertical: 6,
                                                       ),
                                                   decoration: BoxDecoration(
-                                                    color: AppColors
-                                                        .backgroundColour,
+                                                    color:
+                                                        AppColors.primaryColour,
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                          12,
+                                                          10,
                                                         ),
                                                   ),
                                                   child: Row(
                                                     children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          "You’ll need • ${stepIngredients.length} ingredient${stepIngredients.length == 1 ? '' : 's'}",
-                                                          style: TextStyles
-                                                              .bodyTextBoldAccent,
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
+                                                      const Icon(
+                                                        Icons.timer,
+                                                        size: 14,
+                                                        color: Colors.white,
                                                       ),
-                                                      const SizedBox(width: 8),
-                                                      Icon(
-                                                        expanded
-                                                            ? Icons
-                                                                  .keyboard_arrow_up
-                                                            : Icons
-                                                                  .keyboard_arrow_down,
-                                                        color: AppColors
-                                                            .primaryTextColour,
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        (_timerRunningByStep[i] ??
+                                                                false)
+                                                            ? 'Running'
+                                                            : 'Timer',
+                                                        style: TextStyles
+                                                            .bodyTextBoldSecondary,
                                                       ),
                                                     ],
                                                   ),
                                                 ),
                                               ),
-
-                                              const SizedBox(height: 8),
-                                              AnimatedSize(
-                                                duration: const Duration(
-                                                  milliseconds: 180,
-                                                ),
-                                                curve: Curves.easeOut,
-                                                child: expanded
-                                                    ? Container(
-                                                        key: _ingredientsKey,
-                                                        width: double.infinity,
-                                                        padding:
-                                                            const EdgeInsets.all(
-                                                              10,
-                                                            ),
-                                                        decoration: BoxDecoration(
-                                                          color: AppColors
-                                                              .backgroundColour,
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                12,
-                                                              ),
-                                                        ),
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
-                                                          children: [
-                                                            Row(
-                                                              children: [
-                                                                Expanded(
-                                                                  child: Text(
-                                                                    "Ingredients",
-                                                                    style: TextStyles
-                                                                        .subheading,
-                                                                    maxLines: 1,
-                                                                    overflow:
-                                                                        TextOverflow
-                                                                            .ellipsis,
-                                                                  ),
-                                                                ),
-                                                                const SizedBox(
-                                                                  width: 8,
-                                                                ),
-                                                                GestureDetector(
-                                                                  key:
-                                                                      _conversionKey,
-                                                                  onTap: () {
-                                                                    addInteraction();
-                                                                    showModalBottomSheet(
-                                                                      context:
-                                                                          context,
-                                                                      backgroundColor:
-                                                                          AppColors
-                                                                              .primaryColour,
-                                                                      shape: const RoundedRectangleBorder(
-                                                                        borderRadius: BorderRadius.vertical(
-                                                                          top: Radius.circular(
-                                                                            16,
-                                                                          ),
-                                                                        ),
-                                                                      ),
-                                                                      builder: (_) {
-                                                                        Widget
-                                                                        option(
-                                                                          String
-                                                                          label,
-                                                                          UnitSystem
-                                                                          mode,
-                                                                        ) {
-                                                                          final selected =
-                                                                              notifier.unitSystem ==
-                                                                              mode;
-                                                                          return ListTile(
-                                                                            title: Text(
-                                                                              label,
-                                                                              style: TextStyles.smallHeadingSecondary,
-                                                                            ),
-                                                                            trailing:
-                                                                                selected
-                                                                                ? const Icon(
-                                                                                    Icons.check,
-                                                                                    color: Colors.white,
-                                                                                  )
-                                                                                : null,
-                                                                            onTap: () {
-                                                                              Navigator.pop(
-                                                                                context,
-                                                                              );
-                                                                              notifier.updateUnitSystem(
-                                                                                mode,
-                                                                              );
-                                                                            },
-                                                                          );
-                                                                        }
-
-                                                                        return SafeArea(
-                                                                          child: Padding(
-                                                                            padding: const EdgeInsets.all(
-                                                                              12,
-                                                                            ),
-                                                                            child: Column(
-                                                                              mainAxisSize: MainAxisSize.min,
-                                                                              children: [
-                                                                                option(
-                                                                                  "Original",
-                                                                                  UnitSystem.original,
-                                                                                ),
-                                                                                option(
-                                                                                  "Metric",
-                                                                                  UnitSystem.metric,
-                                                                                ),
-                                                                                option(
-                                                                                  "Imperial (cups)",
-                                                                                  UnitSystem.imperial_cups,
-                                                                                ),
-                                                                                option(
-                                                                                  "Imperial (ozs)",
-                                                                                  UnitSystem.imperial_ozs,
-                                                                                ),
-                                                                              ],
-                                                                            ),
-                                                                          ),
-                                                                        );
-                                                                      },
-                                                                    );
-                                                                  },
-                                                                  child: Container(
-                                                                    padding: const EdgeInsets.symmetric(
-                                                                      horizontal:
-                                                                          8,
-                                                                      vertical:
-                                                                          2,
-                                                                    ),
-                                                                    decoration: BoxDecoration(
-                                                                      color: AppColors
-                                                                          .primaryColour,
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                            10,
-                                                                          ),
-                                                                    ),
-                                                                    child: Row(
-                                                                      children: [
-                                                                        Icon(
-                                                                          Icons
-                                                                              .balance,
-                                                                          size:
-                                                                              14,
-                                                                          color:
-                                                                              AppColors.secondaryTextColour,
-                                                                        ),
-                                                                        const SizedBox(
-                                                                          width:
-                                                                              4,
-                                                                        ),
-                                                                        Text(
-                                                                          viewModeLabel(
-                                                                            notifier.unitSystem,
-                                                                          ),
-                                                                          style:
-                                                                              TextStyles.bodyTextBoldSecondary,
-                                                                        ),
-                                                                      ],
-                                                                    ),
-                                                                  ),
-                                                                ),
-                                                              ],
-                                                            ),
-                                                            const SizedBox(
-                                                              height: 10,
-                                                            ),
-
-                                                            ...List.generate(
-                                                              stepIngredients
-                                                                  .length,
-                                                              (ingredIndex) {
-                                                                final ingred =
-                                                                    stepIngredients[ingredIndex];
-                                                                final displayIngred =
-                                                                    _displayIngredient(
-                                                                      ingred,
-                                                                      notifier
-                                                                          .unitSystem,
-                                                                    );
-                                                                final subKey =
-                                                                    '$i|${ingred.raw.toLowerCase()}';
-
-                                                                return Padding(
-                                                                  padding:
-                                                                      const EdgeInsets.only(
-                                                                        bottom:
-                                                                            6,
-                                                                      ),
-                                                                  child: ParsedIngredientPill(
-                                                                    ingredient:
-                                                                        displayIngred,
-                                                                    showSubOption:
-                                                                        true,
-                                                                    onSub: () => handleSubs(
-                                                                      subKey,
-                                                                      recipe
-                                                                          .title,
-                                                                      "${ingred.quantity ?? ''} ${ingred.unit ?? ''} ${ingred.item ?? ingred.raw}"
-                                                                          .trim(),
-                                                                    ),
-                                                                    removeSubs: () =>
-                                                                        handleRemoveSubs(
-                                                                          subKey,
-                                                                        ),
-                                                                    subs:
-                                                                        _subsByKey[subKey] ??
-                                                                        const [],
-                                                                    scale: 1.0,
-                                                                    unitSystem:
-                                                                        notifier
-                                                                            .unitSystem,
-                                                                  ),
-                                                                );
-                                                              },
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      )
-                                                    : const SizedBox.shrink(),
-                                              ),
-
-                                              const SizedBox(height: 12),
                                             ],
+                                          ],
+                                        ),
 
-                                            // checklist / step text
-                                            Column(
-                                              key: _stepsKey,
+                                        const SizedBox(height: 8),
+                                        Expanded(
+                                          child: SingleChildScrollView(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                ...List.generate(checklist.length, (
-                                                  j,
-                                                ) {
-                                                  final checked =
-                                                      _checksByStep[i]![j];
-                                                  return Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          bottom: 12,
-                                                        ),
-                                                    child: GestureDetector(
-                                                      onTap: () {
-                                                        setState(
-                                                          () =>
-                                                              _checksByStep[i]![j] =
-                                                                  !checked,
-                                                        );
-                                                        addInteraction();
-                                                      },
-                                                      child: Row(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .start,
-                                                        children: [
-                                                          Container(
-                                                            width: 26,
-                                                            height: 26,
-                                                            decoration: BoxDecoration(
-                                                              color: checked
-                                                                  ? AppColors
-                                                                        .accentColour1
-                                                                  : AppColors
-                                                                        .backgroundColour,
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                    8,
-                                                                  ),
+                                                // ✅ "You'll need" bar + inline expandable ingredients list
+                                                if (stepIngredients
+                                                    .isNotEmpty) ...[
+                                                  GestureDetector(
+                                                    onTap: () {
+                                                      setState(() {
+                                                        _showIngredientsByStep[i] =
+                                                            !(_showIngredientsByStep[i] ??
+                                                                false);
+                                                      });
+                                                    },
+                                                    child: Container(
+                                                      width: double.infinity,
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 12,
+                                                            vertical: 10,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: AppColors
+                                                            .backgroundColour,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
                                                             ),
-                                                            child: const Icon(
-                                                              Icons.check,
-                                                              size: 16,
-                                                              color:
-                                                                  Colors.white,
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Text(
+                                                              "You’ll need • ${stepIngredients.length} ingredient${stepIngredients.length == 1 ? '' : 's'}",
+                                                              style: TextStyles
+                                                                  .bodyTextBoldAccent,
+                                                              maxLines: 1,
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
                                                             ),
                                                           ),
                                                           const SizedBox(
-                                                            width: 10,
+                                                            width: 8,
                                                           ),
-                                                          Expanded(
-                                                            child: RichText(
-                                                              text: TextSpan(
-                                                                style: TextStyles
-                                                                    .pageTitle
-                                                                    .copyWith(
-                                                                      color: AppColors
-                                                                          .primaryTextColour,
-                                                                    ),
-                                                                children:
-                                                                    _stepSpans(
-                                                                      checklist[j],
-                                                                      i,
-                                                                      durations,
-                                                                    ),
-                                                              ),
-                                                            ),
+                                                          Icon(
+                                                            expanded
+                                                                ? Icons
+                                                                      .keyboard_arrow_up
+                                                                : Icons
+                                                                      .keyboard_arrow_down,
+                                                            color: AppColors
+                                                                .primaryTextColour,
                                                           ),
                                                         ],
                                                       ),
                                                     ),
-                                                  );
-                                                }),
+                                                  ),
+
+                                                  const SizedBox(height: 8),
+                                                  AnimatedSize(
+                                                    duration: const Duration(
+                                                      milliseconds: 180,
+                                                    ),
+                                                    curve: Curves.easeOut,
+                                                    child: expanded
+                                                        ? Container(
+                                                            key:
+                                                                _ingredientsKey,
+                                                            width:
+                                                                double.infinity,
+                                                            padding:
+                                                                const EdgeInsets.all(
+                                                                  10,
+                                                                ),
+                                                            decoration: BoxDecoration(
+                                                              color: AppColors
+                                                                  .backgroundColour,
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    12,
+                                                                  ),
+                                                            ),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Row(
+                                                                  children: [
+                                                                    Expanded(
+                                                                      child: Text(
+                                                                        "Ingredients",
+                                                                        style: TextStyles
+                                                                            .subheading,
+                                                                        maxLines:
+                                                                            1,
+                                                                        overflow:
+                                                                            TextOverflow.ellipsis,
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(
+                                                                      width: 8,
+                                                                    ),
+                                                                    GestureDetector(
+                                                                      key:
+                                                                          _conversionKey,
+                                                                      onTap: () {
+                                                                        addInteraction();
+                                                                        showModalBottomSheet(
+                                                                          context:
+                                                                              context,
+                                                                          backgroundColor:
+                                                                              AppColors.primaryColour,
+                                                                          shape: const RoundedRectangleBorder(
+                                                                            borderRadius: BorderRadius.vertical(
+                                                                              top: Radius.circular(
+                                                                                16,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                          builder: (_) {
+                                                                            Widget
+                                                                            option(
+                                                                              String
+                                                                              label,
+                                                                              UnitSystem
+                                                                              mode,
+                                                                            ) {
+                                                                              final selected =
+                                                                                  notifier.unitSystem ==
+                                                                                  mode;
+                                                                              return ListTile(
+                                                                                title: Text(
+                                                                                  label,
+                                                                                  style: TextStyles.smallHeadingSecondary,
+                                                                                ),
+                                                                                trailing: selected
+                                                                                    ? const Icon(
+                                                                                        Icons.check,
+                                                                                        color: Colors.white,
+                                                                                      )
+                                                                                    : null,
+                                                                                onTap: () {
+                                                                                  Navigator.pop(
+                                                                                    context,
+                                                                                  );
+                                                                                  notifier.updateUnitSystem(
+                                                                                    mode,
+                                                                                  );
+                                                                                },
+                                                                              );
+                                                                            }
+
+                                                                            return SafeArea(
+                                                                              child: Padding(
+                                                                                padding: const EdgeInsets.all(
+                                                                                  12,
+                                                                                ),
+                                                                                child: Column(
+                                                                                  mainAxisSize: MainAxisSize.min,
+                                                                                  children: [
+                                                                                    option(
+                                                                                      "Original",
+                                                                                      UnitSystem.original,
+                                                                                    ),
+                                                                                    option(
+                                                                                      "Metric",
+                                                                                      UnitSystem.metric,
+                                                                                    ),
+                                                                                    option(
+                                                                                      "Imperial (cups)",
+                                                                                      UnitSystem.imperial_cups,
+                                                                                    ),
+                                                                                    option(
+                                                                                      "Imperial (ozs)",
+                                                                                      UnitSystem.imperial_ozs,
+                                                                                    ),
+                                                                                  ],
+                                                                                ),
+                                                                              ),
+                                                                            );
+                                                                          },
+                                                                        );
+                                                                      },
+                                                                      child: Container(
+                                                                        padding: const EdgeInsets.symmetric(
+                                                                          horizontal:
+                                                                              8,
+                                                                          vertical:
+                                                                              2,
+                                                                        ),
+                                                                        decoration: BoxDecoration(
+                                                                          color:
+                                                                              AppColors.primaryColour,
+                                                                          borderRadius: BorderRadius.circular(
+                                                                            10,
+                                                                          ),
+                                                                        ),
+                                                                        child: Row(
+                                                                          children: [
+                                                                            Icon(
+                                                                              Icons.balance,
+                                                                              size: 14,
+                                                                              color: AppColors.secondaryTextColour,
+                                                                            ),
+                                                                            const SizedBox(
+                                                                              width: 4,
+                                                                            ),
+                                                                            Text(
+                                                                              viewModeLabel(
+                                                                                notifier.unitSystem,
+                                                                              ),
+                                                                              style: TextStyles.bodyTextBoldSecondary,
+                                                                            ),
+                                                                          ],
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                                const SizedBox(
+                                                                  height: 10,
+                                                                ),
+
+                                                                ...List.generate(
+                                                                  stepIngredients
+                                                                      .length,
+                                                                  (
+                                                                    ingredIndex,
+                                                                  ) {
+                                                                    final ingred =
+                                                                        stepIngredients[ingredIndex];
+                                                                    final displayIngred =
+                                                                        _displayIngredient(
+                                                                          ingred,
+                                                                          notifier
+                                                                              .unitSystem,
+                                                                        );
+                                                                    final subKey =
+                                                                        '$i|${ingred.raw.toLowerCase()}';
+
+                                                                    return Padding(
+                                                                      padding: const EdgeInsets.only(
+                                                                        bottom:
+                                                                            6,
+                                                                      ),
+                                                                      child: ParsedIngredientPill(
+                                                                        ingredient:
+                                                                            displayIngred,
+                                                                        showSubOption:
+                                                                            true,
+                                                                        onSub: () => handleSubs(
+                                                                          subKey,
+                                                                          recipe
+                                                                              .title,
+                                                                          "${ingred.quantity ?? ''} ${ingred.unit ?? ''} ${ingred.item ?? ingred.raw}"
+                                                                              .trim(),
+                                                                        ),
+                                                                        removeSubs: () =>
+                                                                            handleRemoveSubs(
+                                                                              subKey,
+                                                                            ),
+                                                                        subs:
+                                                                            _subsByKey[subKey] ??
+                                                                            const [],
+                                                                        scale:
+                                                                            1.0,
+                                                                        unitSystem:
+                                                                            notifier.unitSystem,
+                                                                      ),
+                                                                    );
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          )
+                                                        : const SizedBox.shrink(),
+                                                  ),
+
+                                                  const SizedBox(height: 12),
+                                                ],
+
+                                                // checklist / step text
+                                                Column(
+                                                  key: _stepsKey,
+                                                  children: [
+                                                    ...List.generate(checklist.length, (
+                                                      j,
+                                                    ) {
+                                                      final checked =
+                                                          _checksByStep[i]![j];
+                                                      return Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                              bottom: 12,
+                                                            ),
+                                                        child: GestureDetector(
+                                                          onTap: () {
+                                                            setState(
+                                                              () =>
+                                                                  _checksByStep[i]![j] =
+                                                                      !checked,
+                                                            );
+                                                            addInteraction();
+                                                          },
+                                                          child: Row(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Container(
+                                                                width: 26,
+                                                                height: 26,
+                                                                decoration: BoxDecoration(
+                                                                  color: checked
+                                                                      ? AppColors
+                                                                            .accentColour1
+                                                                      : AppColors
+                                                                            .backgroundColour,
+                                                                  borderRadius:
+                                                                      BorderRadius.circular(
+                                                                        8,
+                                                                      ),
+                                                                ),
+                                                                child: const Icon(
+                                                                  Icons.check,
+                                                                  size: 16,
+                                                                  color: Colors
+                                                                      .white,
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 10,
+                                                              ),
+                                                              Expanded(
+                                                                child: RichText(
+                                                                  text: TextSpan(
+                                                                    style: TextStyles
+                                                                        .pageTitle
+                                                                        .copyWith(
+                                                                          color:
+                                                                              AppColors.primaryTextColour,
+                                                                        ),
+                                                                    children: _stepSpans(
+                                                                      checklist[j],
+                                                                      i,
+                                                                      durations,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      );
+                                                    }),
+                                                  ],
+                                                ),
                                               ],
                                             ),
-                                          ],
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => _go(_index - 1, total),
+                              child: Container(
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: _index <= 0
+                                      ? AppColors.backgroundColour
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _index <= 0 ? "" : 'Back',
+                                    style: TextStyles.smallHeading,
+                                  ),
                                 ),
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () async {
+                                if (_index >= steps.length - 1) {
+                                  await showModalBottomSheet(
+                                    context: context,
+                                    isScrollControlled: true,
+                                    backgroundColor: AppColors.backgroundColour,
+                                    builder: (_) => CookedSheet(
+                                      recipe: recipe,
+                                      onSave: () {},
+                                    ),
+                                  );
+
+                                  Navigator.pop(context);
+                                } else {
+                                  _go(_index + 1, total);
+                                }
+                              },
+                              child: Container(
+                                height: 54,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryColour,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    _index >= steps.length - 1
+                                        ? "Done"
+                                        : 'Next',
+                                    style: TextStyles.smallHeadingSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(width: double.infinity),
+                    IntrinsicHeight(
+                      child: Container(
+                        constraints: BoxConstraints(maxWidth: 300),
+                        width: double.infinity,
 
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => _go(_index - 1, total),
-                          child: Container(
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: _index <= 0
-                                  ? AppColors.backgroundColour
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(14),
+                        margin: const EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          bottom: 100,
+                        ),
+                        padding: const EdgeInsets.all(8),
+
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.all(Radius.circular(15)),
+                          color: Colors.white.withAlpha(200),
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 15,
+                              spreadRadius: 0.1,
+                              color: Color.fromARGB(255, 203, 207, 202),
                             ),
-                            child: Center(
-                              child: Text(
-                                _index <= 0 ? "" : 'Back',
-                                style: TextStyles.smallHeading,
-                              ),
-                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            "Try tapping on ingredients to see substitutions, and checking off steps as you go, and using the built in timers!",
+                            style: TextStyles.smallHeading,
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () async {
-                            if (_index >= steps.length - 1) {
-                              await showModalBottomSheet(
-                                context: context,
-                                isScrollControlled: true,
-                                backgroundColor: AppColors.backgroundColour,
-                                builder: (_) => CookedSheet(recipe: recipe),
-                              );
-
-                              Navigator.pop(context);
-                            } else {
-                              _go(_index + 1, total);
-                            }
-                          },
-                          child: Container(
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryColour,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Center(
-                              child: Text(
-                                _index >= steps.length - 1 ? "Done" : 'Next',
-                                style: TextStyles.smallHeadingSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),

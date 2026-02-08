@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:confetti/confetti.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -24,16 +27,18 @@ import 'package:path/path.dart' as p;
 class AddRecipeManuallyPage extends StatefulWidget {
   final bool openCamera;
   final bool editingRecipe;
+  final bool popOnSave;
   final Recipe? oldRecipe;
   final String? importingUrl;
-  final bool demo;
+  final Map<String, dynamic>? draftRecipe;
   const AddRecipeManuallyPage({
     super.key,
     this.openCamera = false,
     this.editingRecipe = false,
-    this.demo = false,
     this.oldRecipe,
     this.importingUrl,
+    required this.popOnSave,
+    this.draftRecipe,
   });
 
   @override
@@ -56,6 +61,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
   bool showingTagOptions = false;
   final _ingredientInput = TextEditingController();
   final List<Ingredient> _ingredients = [];
+  bool recipeSaved = false;
 
   bool _ingredientParsing = false;
   String? _ingredientError;
@@ -83,10 +89,19 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
   bool _saving = false;
   bool _scanning = false;
   bool _scrapping = false;
+  late final ConfettiController _confettiController;
+
+  void showCorfetti() {
+    HapticFeedback.lightImpact();
+    _confettiController.play();
+  }
 
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 1),
+    );
     if (widget.openCamera) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -116,6 +131,9 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
         // add source too
       });
     }
+    if (widget.draftRecipe != null) {
+      importDraftRecipe();
+    }
   }
 
   @override
@@ -124,6 +142,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     _description.dispose();
     _timeMinutes.dispose();
     _servings.dispose();
+    _confettiController.dispose();
 
     _tagsInput.dispose();
     _tagFocus.dispose();
@@ -193,6 +212,38 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     );
   }
 
+  Future<void> importDraftRecipe() async {
+    try {
+      if (widget.draftRecipe == null) return;
+      _applyRecipeDraft(widget.draftRecipe!);
+      _sourceType = 'My Own Recipe';
+      _sourceAuthor.text = "Made FridgeAI";
+      if (!mounted) return;
+      showCorfetti();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Import complete - review and save',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
+    } catch (e) {
+      debugPrint(e.toString());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Import failed - please try again',
+            style: TextStyles.smallHeadingSecondary,
+          ),
+          backgroundColor: AppColors.primaryColour,
+        ),
+      );
+    }
+  }
+
   Future<void> _scanFromURL(String url) async {
     if (_saving || _scanning || _scrapping) return;
     setState(() => _scrapping = true);
@@ -217,6 +268,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       _sourceType = 'URL';
       _sourceUrl.text = url;
       if (!mounted) return;
+      showCorfetti();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -289,6 +341,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
       _sourceType = 'Cookbook';
 
       if (!mounted) return;
+      showCorfetti();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -809,11 +862,11 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
               pageNumber: int.tryParse(_pageNumber.text),
               notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
             );
-
+      recipeSaved = true;
       if (!mounted) return;
       if (savedRecipe == null) return;
-      if (widget.editingRecipe) {
-        Navigator.pop(context);
+      if (widget.popOnSave) {
+        Navigator.pop(context, true);
       } else {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => RecipePage(id: savedRecipe.id)),
@@ -833,12 +886,6 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     } finally {
       if (mounted) {
         setState(() => _saving = false);
-        if (widget.demo) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => MainPage()),
-          );
-        }
       }
     }
   }
@@ -847,129 +894,93 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
-        return Scaffold(
-          backgroundColor: AppColors.backgroundColour,
-          body: SafeArea(
-            bottom: false,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
+        return Stack(
+          children: [
+            Scaffold(
+              backgroundColor: AppColors.backgroundColour,
+              body: SafeArea(
+                bottom: false,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
 
-              onTap: () {
-                FocusManager.instance.primaryFocus?.unfocus();
-              },
-              child: Column(
-                children: [
-                  Row(
+                  onTap: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                  },
+                  child: Column(
                     children: [
-                      IconButton(
-                        onPressed: () {
-                          if (widget.demo) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MainPage(),
-                              ),
-                            );
-                          } else {
-                            Navigator.pop(context);
-                          }
-                        },
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: AppColors.primaryTextColour,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          widget.editingRecipe ? "Edit Recipe" : 'Add Recipe',
-                          style: TextStyles.pageTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: (_saving || _scanning || _scrapping)
-                            ? null
-                            : _save,
-                        child: _saving
-                            ? const SizedBox(
-                                height: 15,
-                                width: 15,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: AppColors.primaryColour,
-                                ),
-                              )
-                            : Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 3,
-                                  horizontal: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: (_saving || _scanning || _scrapping)
-                                      ? Colors.grey
-                                      : AppColors.primaryColour,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'Save',
-                                    style: TextStyles.smallHeadingSecondary,
-                                  ),
-                                ),
-                              ),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-                  ),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
                         children: [
-                          if (!widget.editingRecipe)
-                            GestureDetector(
-                              onTap: (_saving || _scanning || _scrapping)
-                                  ? null
-                                  : _scanRecipeFromCookbook,
-                              child: Container(
-                                height: 50,
-                                padding: EdgeInsets.all(8),
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: (_saving || _scanning || _scrapping)
-                                      ? Colors.grey
-                                      : AppColors.accentColour1,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    'Scan recipe from cookbook',
-                                    style: TextStyles.smallHeadingSecondary,
-                                  ),
-                                ),
-                              ),
+                          IconButton(
+                            onPressed: () {
+                              Navigator.pop(context, recipeSaved);
+                            },
+                            icon: Icon(
+                              Icons.arrow_back,
+                              color: AppColors.primaryTextColour,
                             ),
-                          if (!widget.editingRecipe) const SizedBox(height: 8),
-                          if (!widget.editingRecipe)
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Input(
-                                    controller: _addFromURL,
-                                    hint: 'Add recipe from URL or social media',
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              widget.editingRecipe
+                                  ? "Edit Recipe"
+                                  : 'Add Recipe',
+                              style: TextStyles.pageTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: (_saving || _scanning || _scrapping)
+                                ? null
+                                : _save,
+                            child: _saving
+                                ? const SizedBox(
+                                    height: 15,
+                                    width: 15,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppColors.primaryColour,
+                                    ),
+                                  )
+                                : Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 3,
+                                      horizontal: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (_saving || _scanning || _scrapping)
+                                          ? Colors.grey
+                                          : AppColors.primaryColour,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        'Save',
+                                        style: TextStyles.smallHeadingSecondary,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
+                          ),
+                          const SizedBox(width: 16),
+                        ],
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (!widget.editingRecipe)
                                 GestureDetector(
                                   onTap: (_saving || _scanning || _scrapping)
                                       ? null
-                                      : () => _scanFromURL(_addFromURL.text),
+                                      : _scanRecipeFromCookbook,
                                   child: Container(
+                                    height: 50,
                                     padding: EdgeInsets.all(8),
+                                    width: double.infinity,
                                     decoration: BoxDecoration(
                                       color:
                                           (_saving || _scanning || _scrapping)
@@ -979,619 +990,716 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                                     ),
                                     child: Center(
                                       child: Text(
-                                        'Add',
+                                        'Scan recipe from cookbook',
                                         style: TextStyles.smallHeadingSecondary,
                                       ),
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          if (!widget.editingRecipe) const SizedBox(height: 8),
-                          // Images
-                          GestureDetector(
-                            onTap: _saving ? null : _showImagesSheet,
-                            child: Container(
-                              height: 160,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: _images.isEmpty
-                                  ? Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: const [
-                                        Icon(
-                                          Icons.add_a_photo,
-                                          color: Colors.grey,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          'Add recipe photos',
-                                          style: TextStyles.inputText,
-                                        ),
-                                      ],
-                                    )
-                                  : ClipRRect(
-                                      borderRadius: BorderRadius.circular(10),
-                                      child: ListView.separated(
-                                        padding: const EdgeInsets.all(8),
-                                        scrollDirection: Axis.horizontal,
-                                        itemCount: _images.length,
-                                        separatorBuilder: (_, __) =>
-                                            const SizedBox(width: 8),
-                                        itemBuilder: (_, i) {
-                                          return Stack(
-                                            children: [
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                                child: Image.file(
-                                                  File(_images[i].path),
-                                                  fit: BoxFit.cover,
-                                                  width: 220,
-                                                  height: 140,
-                                                ),
-                                              ),
-                                              Positioned(
-                                                right: 6,
-                                                top: 6,
-                                                child: GestureDetector(
-                                                  onTap: () => setState(
-                                                    () => _images.removeAt(i),
-                                                  ),
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.all(6),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.black
-                                                          .withOpacity(0.55),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                            999,
-                                                          ),
-                                                    ),
-                                                    child: const Icon(
-                                                      Icons.close,
-                                                      size: 16,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      ),
-                                    ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 8),
-                          Text('Recipe Title', style: TextStyles.subheading),
-                          Input(controller: _title, hint: 'Recipe title'),
-                          const SizedBox(height: 8),
-                          Text('Description', style: TextStyles.subheading),
-                          Input(
-                            controller: _description,
-                            hint: 'Description (optional)',
-                            maxLines: 3,
-                          ),
-
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Time',
-                                  style: TextStyles.subheading,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Servings',
-                                  style: TextStyles.subheading,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Input(
-                                  controller: _timeMinutes,
-                                  hint: 'Time (mins)',
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Input(
-                                  controller: _servings,
-                                  hint: 'Servings',
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Tags
-                          const Text('Tags', style: TextStyles.subheading),
-                          Autocomplete<String>(
-                            optionsBuilder: (TextEditingValue value) {
-                              final q = value.text.trim().toLowerCase();
-                              if (q.isEmpty) {
-                                showingTagOptions = false;
-                                setState(() {});
-                                return const Iterable<String>.empty();
-                              }
-                              final matches = notifier.allTags
-                                  .where((t) => t.toLowerCase().contains(q))
-                                  .take(3);
-                              if (matches.isNotEmpty) {
-                                showingTagOptions = true;
-                                setState(() {});
-                              }
-                              return matches;
-                            },
-                            optionsViewBuilder: (context, onSelected, options) {
-                              return showingTagOptions
-                                  ? Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: options.map((t) {
-                                          return GestureDetector(
-                                            onTap: () {
-                                              setState(() {
-                                                _tags.add(t);
-                                                showingTagOptions = false;
-                                              });
-                                              _tagsInput.clear();
-                                            },
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 8,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(999),
-                                              ),
-                                              child: Text(
-                                                t,
-                                                style: TextStyles.inputText,
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
-                                      ),
-                                    )
-                                  : SizedBox.shrink();
-                            },
-
-                            onSelected: (selection) {
-                              if (_tags.any(
-                                (x) =>
-                                    x.toLowerCase() == selection.toLowerCase(),
-                              ))
-                                return;
-                              setState(() => _tags.add(selection));
-                              _tagsInput.clear();
-                              _tagFocus.requestFocus();
-                            },
-                            fieldViewBuilder:
-                                (
-                                  context,
-                                  textController,
-                                  focusNode,
-                                  onFieldSubmitted,
-                                ) {
-                                  // Keep your existing controller so the rest of your code still works
-                                  if (textController != _tagsInput) {
-                                    textController.value = _tagsInput.value;
-                                    textController.addListener(() {
-                                      _tagsInput.value = textController.value;
-                                    });
-                                  }
-
-                                  return Input(
-                                    controller: textController,
-                                    hint: 'Type a tag (e.g. Vegan)',
-                                    focusNode: focusNode,
-                                    onChanged: (v) {
-                                      if (_addingTag) return;
-
-                                      final q = v.trim();
-                                      if (q.isEmpty) return;
-
-                                      // Auto-add if exact match (case-insensitive)
-                                      final isExact = notifier.allTags.any(
-                                        (t) =>
-                                            t.toLowerCase() == q.toLowerCase(),
-                                      );
-                                      if (!isExact) return;
-
-                                      _addingTag = true;
-                                      addTagIfExact(q);
-                                      _addingTag = false;
-                                    },
-                                    onSubmitted: (v) => addTagIfExact(v),
-                                  );
-                                },
-                          ),
-                          if (_tags.isEmpty) const SizedBox(height: 45),
-                          if (_tags.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: _tags.map((t) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: showingTagOptions
-                                        ? AppColors.backgroundColour
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        t,
-                                        style: TextStyles.inputedText.copyWith(
-                                          color: showingTagOptions
-                                              ? AppColors.backgroundColour
-                                              : AppColors.primaryTextColour,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      GestureDetector(
-                                        onTap: () => _removeTag(t),
-                                        child: Icon(
-                                          Icons.close,
-                                          size: 16,
-                                          color: showingTagOptions
-                                              ? AppColors.backgroundColour
-                                              : Colors.grey,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ],
-
-                          const SizedBox(height: 16),
-
-                          Text('Ingredients', style: TextStyles.subheading),
-
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
+                              if (!widget.editingRecipe)
+                                const SizedBox(height: 8),
+                              if (!widget.editingRecipe)
+                                Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Input(
-                                      controller: _ingredientInput,
-                                      hint: 'e.g. 2 tbsp olive oil',
-                                      onChanged: (_) {
-                                        if (_ingredientError != null) {
-                                          setState(
-                                            () => _ingredientError = null,
-                                          );
-                                        }
-                                      },
-                                      onSubmitted: (_) =>
-                                          _addIngredientFromInput(),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    if (_ingredientError != null)
-                                      Text(
-                                        _ingredientError!,
-                                        style: TextStyles.inputText.copyWith(
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: _ingredientParsing
-                                    ? null
-                                    : _addIngredientFromInput,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.accentColour1,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: _ingredientParsing
-                                      ? const SizedBox(
-                                          height: 18,
-                                          width: 18,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color:
-                                                AppColors.secondaryTextColour,
-                                          ),
-                                        )
-                                      : Text(
-                                          'Add',
-                                          style:
-                                              TextStyles.bodyTextBoldSecondary,
-                                        ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          if (_ingredients.isNotEmpty)
-                            Column(
-                              children: List.generate(_ingredients.length, (i) {
-                                final ingred = _ingredients[i];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: ParsedIngredientPill(
-                                          ingredient: ingred,
-                                          showSubOption: false,
-                                          onSub: () async {},
-                                          subs: [],
-                                          removeSubs: () {},
-                                          scale: 1,
-                                          unitSystem: UnitSystem.original,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      GestureDetector(
-                                        onTap: () => _removeIngredient(i),
-                                        child: Container(
-                                          padding: EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                          child: const Icon(
-                                            size: 16,
-                                            Icons.delete_outline,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                            ),
-
-                          const SizedBox(height: 8),
-
-                          // Steps
-                          Text('Steps', style: TextStyles.subheading),
-                          Column(
-                            children: List.generate(_stepCtrls.length, (i) {
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      width: 28,
-                                      height: 28,
-                                      decoration: BoxDecoration(
-                                        color: AppColors.accentColour1,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '${i + 1}',
-                                          style:
-                                              TextStyles.bodyTextBoldSecondary,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
                                     Expanded(
                                       child: Input(
-                                        controller: _stepCtrls[i],
-                                        hint: 'Step ${i + 1}',
-                                        maxLines: 3,
+                                        controller: _addFromURL,
+                                        hint:
+                                            'Add recipe from URL or social media',
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     GestureDetector(
-                                      onTap: () => _removeStep(i),
+                                      onTap:
+                                          (_saving || _scanning || _scrapping)
+                                          ? null
+                                          : () =>
+                                                _scanFromURL(_addFromURL.text),
                                       child: Container(
-                                        padding: const EdgeInsets.all(8),
+                                        padding: EdgeInsets.all(8),
                                         decoration: BoxDecoration(
-                                          color: Colors.white,
+                                          color:
+                                              (_saving ||
+                                                  _scanning ||
+                                                  _scrapping)
+                                              ? Colors.grey
+                                              : AppColors.accentColour1,
                                           borderRadius: BorderRadius.circular(
                                             10,
                                           ),
                                         ),
-                                        child: const Icon(
-                                          size: 16,
-                                          Icons.delete_outline,
-                                          color: Colors.grey,
+                                        child: Center(
+                                          child: Text(
+                                            'Add',
+                                            style: TextStyles
+                                                .smallHeadingSecondary,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
-                              );
-                            }),
-                          ),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: AppColors.accentColour1,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${_stepCtrls.length + 1}',
-                                    style: TextStyles.bodyTextBoldSecondary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
+                              if (!widget.editingRecipe)
+                                const SizedBox(height: 8),
+                              // Images
                               GestureDetector(
-                                onTap: _addStep,
+                                onTap: _saving ? null : _showImagesSheet,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
+                                  height: 160,
+                                  width: double.infinity,
                                   decoration: BoxDecoration(
-                                    color: AppColors.accentColour1,
+                                    color: Colors.white,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: Text(
-                                    'Add New Step',
-                                    style: TextStyles.bodyTextBoldSecondary,
+                                  child: _images.isEmpty
+                                      ? Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: const [
+                                            Icon(
+                                              Icons.add_a_photo,
+                                              color: Colors.grey,
+                                            ),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              'Add recipe photos',
+                                              style: TextStyles.inputText,
+                                            ),
+                                          ],
+                                        )
+                                      : ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          child: ListView.separated(
+                                            padding: const EdgeInsets.all(8),
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: _images.length,
+                                            separatorBuilder: (_, __) =>
+                                                const SizedBox(width: 8),
+                                            itemBuilder: (_, i) {
+                                              return Stack(
+                                                children: [
+                                                  ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          10,
+                                                        ),
+                                                    child: Image.file(
+                                                      File(_images[i].path),
+                                                      fit: BoxFit.cover,
+                                                      width: 220,
+                                                      height: 140,
+                                                    ),
+                                                  ),
+                                                  Positioned(
+                                                    right: 6,
+                                                    top: 6,
+                                                    child: GestureDetector(
+                                                      onTap: () => setState(
+                                                        () =>
+                                                            _images.removeAt(i),
+                                                      ),
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              6,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: Colors.black
+                                                              .withOpacity(
+                                                                0.55,
+                                                              ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                999,
+                                                              ),
+                                                        ),
+                                                        child: const Icon(
+                                                          Icons.close,
+                                                          size: 16,
+                                                          color: Colors.white,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 8),
+                              Text(
+                                'Recipe Title',
+                                style: TextStyles.subheading,
+                              ),
+                              Input(controller: _title, hint: 'Recipe title'),
+                              const SizedBox(height: 8),
+                              Text('Description', style: TextStyles.subheading),
+                              Input(
+                                controller: _description,
+                                hint: 'Description (optional)',
+                                maxLines: 3,
+                              ),
+
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'Time',
+                                      style: TextStyles.subheading,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Servings',
+                                      style: TextStyles.subheading,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Input(
+                                      controller: _timeMinutes,
+                                      hint: 'Time (mins)',
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Input(
+                                      controller: _servings,
+                                      hint: 'Servings',
+                                      keyboardType: TextInputType.number,
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Tags
+                              const Text('Tags', style: TextStyles.subheading),
+                              Autocomplete<String>(
+                                optionsBuilder: (TextEditingValue value) {
+                                  final q = value.text.trim().toLowerCase();
+                                  if (q.isEmpty) {
+                                    showingTagOptions = false;
+                                    setState(() {});
+                                    return const Iterable<String>.empty();
+                                  }
+                                  final matches = notifier.allTags
+                                      .where((t) => t.toLowerCase().contains(q))
+                                      .take(3);
+                                  if (matches.isNotEmpty) {
+                                    showingTagOptions = true;
+                                    setState(() {});
+                                  }
+                                  return matches;
+                                },
+                                optionsViewBuilder: (context, onSelected, options) {
+                                  return showingTagOptions
+                                      ? Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 8.0,
+                                          ),
+                                          child: Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: options.map((t) {
+                                              return GestureDetector(
+                                                onTap: () {
+                                                  setState(() {
+                                                    _tags.add(t);
+                                                    showingTagOptions = false;
+                                                  });
+                                                  _tagsInput.clear();
+                                                },
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 8,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          999,
+                                                        ),
+                                                  ),
+                                                  child: Text(
+                                                    t,
+                                                    style: TextStyles.inputText,
+                                                  ),
+                                                ),
+                                              );
+                                            }).toList(),
+                                          ),
+                                        )
+                                      : SizedBox.shrink();
+                                },
+
+                                onSelected: (selection) {
+                                  if (_tags.any(
+                                    (x) =>
+                                        x.toLowerCase() ==
+                                        selection.toLowerCase(),
+                                  ))
+                                    return;
+                                  setState(() => _tags.add(selection));
+                                  _tagsInput.clear();
+                                  _tagFocus.requestFocus();
+                                },
+                                fieldViewBuilder:
+                                    (
+                                      context,
+                                      textController,
+                                      focusNode,
+                                      onFieldSubmitted,
+                                    ) {
+                                      // Keep your existing controller so the rest of your code still works
+                                      if (textController != _tagsInput) {
+                                        textController.value = _tagsInput.value;
+                                        textController.addListener(() {
+                                          _tagsInput.value =
+                                              textController.value;
+                                        });
+                                      }
+
+                                      return Input(
+                                        controller: textController,
+                                        hint: 'Type a tag (e.g. Vegan)',
+                                        focusNode: focusNode,
+                                        onChanged: (v) {
+                                          if (_addingTag) return;
+
+                                          final q = v.trim();
+                                          if (q.isEmpty) return;
+
+                                          // Auto-add if exact match (case-insensitive)
+                                          final isExact = notifier.allTags.any(
+                                            (t) =>
+                                                t.toLowerCase() ==
+                                                q.toLowerCase(),
+                                          );
+                                          if (!isExact) return;
+
+                                          _addingTag = true;
+                                          addTagIfExact(q);
+                                          _addingTag = false;
+                                        },
+                                        onSubmitted: (v) => addTagIfExact(v),
+                                      );
+                                    },
+                              ),
+                              if (_tags.isEmpty) const SizedBox(height: 45),
+                              if (_tags.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: _tags.map((t) {
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: showingTagOptions
+                                            ? AppColors.backgroundColour
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            t,
+                                            style: TextStyles.inputedText
+                                                .copyWith(
+                                                  color: showingTagOptions
+                                                      ? AppColors
+                                                            .backgroundColour
+                                                      : AppColors
+                                                            .primaryTextColour,
+                                                ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          GestureDetector(
+                                            onTap: () => _removeTag(t),
+                                            child: Icon(
+                                              Icons.close,
+                                              size: 16,
+                                              color: showingTagOptions
+                                                  ? AppColors.backgroundColour
+                                                  : Colors.grey,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+
+                              const SizedBox(height: 16),
+
+                              Text('Ingredients', style: TextStyles.subheading),
+
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Input(
+                                          controller: _ingredientInput,
+                                          hint: 'e.g. 2 tbsp olive oil',
+                                          onChanged: (_) {
+                                            if (_ingredientError != null) {
+                                              setState(
+                                                () => _ingredientError = null,
+                                              );
+                                            }
+                                          },
+                                          onSubmitted: (_) =>
+                                              _addIngredientFromInput(),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        if (_ingredientError != null)
+                                          Text(
+                                            _ingredientError!,
+                                            style: TextStyles.inputText
+                                                .copyWith(color: Colors.red),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: _ingredientParsing
+                                        ? null
+                                        : _addIngredientFromInput,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accentColour1,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: _ingredientParsing
+                                          ? const SizedBox(
+                                              height: 18,
+                                              width: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: AppColors
+                                                    .secondaryTextColour,
+                                              ),
+                                            )
+                                          : Text(
+                                              'Add',
+                                              style: TextStyles
+                                                  .bodyTextBoldSecondary,
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 4),
+
+                              if (_ingredients.isNotEmpty)
+                                Column(
+                                  children: List.generate(_ingredients.length, (
+                                    i,
+                                  ) {
+                                    final ingred = _ingredients[i];
+                                    return Padding(
+                                      padding: const EdgeInsets.only(bottom: 6),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: ParsedIngredientPill(
+                                              ingredient: ingred,
+                                              showSubOption: false,
+                                              onSub: () async {},
+                                              subs: [],
+                                              removeSubs: () {},
+                                              scale: 1,
+                                              unitSystem: UnitSystem.original,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          GestureDetector(
+                                            onTap: () => _removeIngredient(i),
+                                            child: Container(
+                                              padding: EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(
+                                                size: 16,
+                                                Icons.delete_outline,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }),
+                                ),
+
+                              const SizedBox(height: 8),
+
+                              // Steps
+                              Text('Steps', style: TextStyles.subheading),
+                              Column(
+                                children: List.generate(_stepCtrls.length, (i) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 28,
+                                          height: 28,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.accentColour1,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              '${i + 1}',
+                                              style: TextStyles
+                                                  .bodyTextBoldSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Input(
+                                            controller: _stepCtrls[i],
+                                            hint: 'Step ${i + 1}',
+                                            maxLines: 3,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        GestureDetector(
+                                          onTap: () => _removeStep(i),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: const Icon(
+                                              size: 16,
+                                              Icons.delete_outline,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }),
+                              ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.accentColour1,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '${_stepCtrls.length + 1}',
+                                        style: TextStyles.bodyTextBoldSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: _addStep,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.accentColour1,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        'Add New Step',
+                                        style: TextStyles.bodyTextBoldSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Notes
+                              const Text('Notes', style: TextStyles.subheading),
+                              Input(
+                                controller: _notes,
+                                hint: 'Personal notes (optional)',
+                                maxLines: 3,
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Source
+                              const Text(
+                                'Source',
+                                style: TextStyles.subheading,
+                              ),
+                              Dropdown(
+                                value: _sourceType,
+                                items: const [
+                                  'My Own Recipe',
+                                  'Cookbook',
+                                  'URL',
+                                  'Social Media',
+                                ],
+                                onChanged: (v) =>
+                                    setState(() => _sourceType = v),
+                              ),
+                              if (_sourceType == "URL" ||
+                                  _sourceType == "Social Media") ...[
+                                const SizedBox(height: 8),
+                                Input(
+                                  controller: _sourceUrl,
+                                  hint: 'Source URL (optional)',
+                                ),
+                                const SizedBox(height: 8),
+                                Input(
+                                  controller: _sourceAuthor,
+                                  hint: 'Source author (optional)',
+                                ),
+                                const SizedBox(height: 8),
+                                Input(
+                                  controller: _sourceTitle,
+                                  hint: 'Source title (optional)',
+                                ),
+                              ],
+                              const SizedBox(height: 16),
+
+                              // Cookbook link
+                              if (_sourceType == "Cookbook") ...[
+                                const Text(
+                                  'Cookbook link',
+                                  style: TextStyles.subheading,
+                                ),
+                                CookbookDropdown(
+                                  value: _selectedCookbookId,
+                                  cookbooks: notifier.cookbooks,
+                                  onChanged: (v) =>
+                                      setState(() => _selectedCookbookId = v),
+                                ),
+                                const SizedBox(height: 8),
+                                Input(
+                                  controller: _pageNumber,
+                                  hint: 'Page number (optional)',
+                                  keyboardType: TextInputType.number,
+                                ),
+
+                                const SizedBox(height: 16),
+                              ],
+
+                              // Save button
+                              GestureDetector(
+                                onTap: (_saving || _scanning || _scrapping)
+                                    ? null
+                                    : _save,
+                                child: Container(
+                                  height: 50,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: (_saving || _scanning || _scrapping)
+                                        ? Colors.grey
+                                        : AppColors.primaryColour,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(
+                                    child: _saving
+                                        ? const SizedBox(
+                                            height: 18,
+                                            width: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color:
+                                                  AppColors.secondaryTextColour,
+                                            ),
+                                          )
+                                        : Text(
+                                            'Save Recipe',
+                                            style: TextStyles
+                                                .smallHeadingSecondary,
+                                          ),
                                   ),
                                 ),
                               ),
+                              const SizedBox(height: 32),
                             ],
                           ),
-
-                          const SizedBox(height: 16),
-
-                          // Notes
-                          const Text('Notes', style: TextStyles.subheading),
-                          Input(
-                            controller: _notes,
-                            hint: 'Personal notes (optional)',
-                            maxLines: 3,
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Source
-                          const Text('Source', style: TextStyles.subheading),
-                          Dropdown(
-                            value: _sourceType,
-                            items: const [
-                              'My Own Recipe',
-                              'Cookbook',
-                              'URL',
-                              'Social Media',
-                            ],
-                            onChanged: (v) => setState(() => _sourceType = v),
-                          ),
-                          if (_sourceType == "URL" ||
-                              _sourceType == "Social Media") ...[
-                            const SizedBox(height: 8),
-                            Input(
-                              controller: _sourceUrl,
-                              hint: 'Source URL (optional)',
-                            ),
-                            const SizedBox(height: 8),
-                            Input(
-                              controller: _sourceAuthor,
-                              hint: 'Source author (optional)',
-                            ),
-                            const SizedBox(height: 8),
-                            Input(
-                              controller: _sourceTitle,
-                              hint: 'Source title (optional)',
-                            ),
-                          ],
-                          const SizedBox(height: 16),
-
-                          // Cookbook link
-                          if (_sourceType == "Cookbook") ...[
-                            const Text(
-                              'Cookbook link',
-                              style: TextStyles.subheading,
-                            ),
-                            CookbookDropdown(
-                              value: _selectedCookbookId,
-                              cookbooks: notifier.cookbooks,
-                              onChanged: (v) =>
-                                  setState(() => _selectedCookbookId = v),
-                            ),
-                            const SizedBox(height: 8),
-                            Input(
-                              controller: _pageNumber,
-                              hint: 'Page number (optional)',
-                              keyboardType: TextInputType.number,
-                            ),
-
-                            const SizedBox(height: 16),
-                          ],
-
-                          // Save button
-                          GestureDetector(
-                            onTap: (_saving || _scanning || _scrapping)
-                                ? null
-                                : _save,
-                            child: Container(
-                              height: 50,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: (_saving || _scanning || _scrapping)
-                                    ? Colors.grey
-                                    : AppColors.primaryColour,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: _saving
-                                    ? const SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: AppColors.secondaryTextColour,
-                                        ),
-                                      )
-                                    : Text(
-                                        'Save Recipe',
-                                        style: TextStyles.smallHeadingSecondary,
-                                      ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: IgnorePointer(
+                child: ConfettiWidget(
+                  confettiController: _confettiController,
+                  blastDirection: pi / 2,
+                  emissionFrequency: 1,
+                  numberOfParticles: 10,
+                  gravity: 0.2,
+                  blastDirectionality: BlastDirectionality.explosive,
+                  colors: const [
+                    AppColors.primaryColour,
+                    Colors.blue,
+                    Colors.green,
+                    AppColors.accentColour1,
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
