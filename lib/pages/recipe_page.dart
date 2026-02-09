@@ -43,6 +43,7 @@ class _RecipePageState extends State<RecipePage> {
   final Map<int, List<Ingredient>> _subsByIndex = {};
   late final ConfettiController _confettiController;
   bool savedCookedSheet = false;
+  bool _addingLoading = false;
 
   void handleDecreaseServing() {
     if (_currentServings == null) return;
@@ -192,6 +193,114 @@ class _RecipePageState extends State<RecipePage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              backgroundColor: AppColors.primaryColour,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(16),
+                                ),
+                              ),
+                              builder: (_) {
+                                return SafeArea(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ListTile(
+                                          title: Text(
+                                            "Add to meal plan",
+                                            style: TextStyles
+                                                .smallHeadingSecondary,
+                                          ),
+
+                                          onTap: () async {
+                                            Navigator.pop(context);
+                                            setState(() {
+                                              _addingLoading = true;
+                                            });
+                                            await notifier
+                                                .addPlannedDinnerForDay(
+                                                  recipeId: recipe.id,
+                                                );
+                                            setState(() {
+                                              _addingLoading = false;
+                                            });
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Added to meal plan',
+                                                  style: TextStyles
+                                                      .smallHeadingSecondary,
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.primaryColour,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        ListTile(
+                                          title: Text(
+                                            "Add ingredients to list",
+                                            style: TextStyles
+                                                .smallHeadingSecondary,
+                                          ),
+
+                                          onTap: () async {
+                                            Navigator.pop(context);
+                                            setState(() {
+                                              _addingLoading = true;
+                                            });
+                                            await notifier
+                                                .addRecipeIngredientsToShoppingList(
+                                                  recipe.id,
+                                                );
+                                            setState(() {
+                                              _addingLoading = false;
+                                            });
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Ingredients added to list',
+                                                  style: TextStyles
+                                                      .smallHeadingSecondary,
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.primaryColour,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                          icon: _addingLoading
+                              ? const SizedBox(
+                                  height: 15,
+                                  width: 15,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primaryTextColour,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.add,
+                                  color: AppColors.primaryTextColour,
+                                ),
                         ),
                         IconButton(
                           onPressed: () {

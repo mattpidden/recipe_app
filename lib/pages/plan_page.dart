@@ -132,7 +132,7 @@ class _PlanPageState extends State<PlanPage> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () async {
-                            await notifier.convertPlanToShoppingListNext7Days();
+                            await notifier.convertPlanToShoppingList();
                           },
                           child: Container(
                             height: double.infinity,

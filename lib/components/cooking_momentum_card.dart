@@ -14,7 +14,6 @@ class CookingMomentumCard extends StatelessWidget {
     return Consumer<Notifier>(
       builder: (context, notifier, _) {
         final events = notifier.cookHistory;
-        if (events.isEmpty) return const SizedBox.shrink();
 
         final now = DateTime.now();
         final today = _day(now);
@@ -42,8 +41,6 @@ class CookingMomentumCard extends StatelessWidget {
           return cookedDays.contains(d);
         });
 
-        final cookedLastWeek = last7.where((v) => v).length;
-
         // --- Motivation text ---
         String headline;
         String subline;
@@ -56,7 +53,7 @@ class CookingMomentumCard extends StatelessWidget {
 
           case 1:
             headline = 'Nice start';
-            subline = 'One day down — momentum begins with a single cook ✨';
+            subline = 'One day down — momentum begins with a single cook 🔥';
             break;
 
           case 2:
@@ -87,6 +84,11 @@ class CookingMomentumCard extends StatelessWidget {
           default: // 7+
             headline = '${streak}-day cooking streak';
             subline = 'You cooked every day last week — elite stuff 🏆';
+        }
+
+        if (events.isEmpty) {
+          headline = 'Ready to get in the kitchen?';
+          subline = 'Cook and rate your first recipe to start a streak';
         }
 
         return Container(

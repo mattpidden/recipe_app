@@ -15,7 +15,7 @@ class ParsedIngredientPill extends StatefulWidget {
   final bool isSub;
   final double scale;
   final UnitSystem unitSystem;
-  final bool checked;
+  final bool? checked;
   final String? originRecipe;
 
   const ParsedIngredientPill({
@@ -28,7 +28,7 @@ class ParsedIngredientPill extends StatefulWidget {
     required this.showSubOption,
     required this.unitSystem,
     required this.scale,
-    this.checked = true,
+    this.checked,
     this.originRecipe,
   });
 
@@ -100,13 +100,13 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
                     children: [
                       if (!widget.isSub)
                         Icon(
-                          widget.checked
-                              ? Icons.check_circle
-                              : Icons.circle_outlined,
+                          widget.checked == false
+                              ? Icons.circle_outlined
+                              : Icons.check_circle,
                           size: 16,
-                          color: widget.checked
-                              ? AppColors.successColor
-                              : AppColors.primaryColour.withAlpha(100),
+                          color: widget.checked == false
+                              ? AppColors.primaryColour.withAlpha(100)
+                              : AppColors.successColor,
                         ),
                       if (!widget.isSub) const SizedBox(width: 6),
                       if (left.isNotEmpty)
@@ -114,6 +114,9 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
                           left,
                           style: TextStyles.inputedText.copyWith(
                             fontWeight: FontWeight.w700,
+                            decoration: widget.checked == true
+                                ? TextDecoration.lineThrough
+                                : null,
                           ),
                         ),
                       if (left.isNotEmpty) const SizedBox(width: 6),
@@ -122,7 +125,11 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
                       Expanded(
                         child: Text(
                           item,
-                          style: TextStyles.inputedText,
+                          style: TextStyles.inputedText.copyWith(
+                            decoration: widget.checked == true
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -187,7 +194,11 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
                         Expanded(
                           child: Text(
                             '${widget.ingredient.notes}',
-                            style: TextStyles.inputedText,
+                            style: TextStyles.inputedText.copyWith(
+                              decoration: widget.checked == true
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),

@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/gestures.dart';
@@ -10,7 +9,6 @@ import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/main_page.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
-import 'package:recipe_app/pages/cooked_sheet.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
@@ -1337,13 +1335,10 @@ class _CookingModeDemoPageState extends State<CookingModeDemoPage> {
                             child: GestureDetector(
                               onTap: () async {
                                 if (_index >= steps.length - 1) {
-                                  await showModalBottomSheet(
-                                    context: context,
-                                    isScrollControlled: true,
-                                    backgroundColor: AppColors.backgroundColour,
-                                    builder: (_) => CookedSheet(
-                                      recipe: recipe,
-                                      onSave: () {},
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => MainPage(),
                                     ),
                                   );
 

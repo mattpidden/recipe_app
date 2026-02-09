@@ -435,7 +435,207 @@ class Notifier extends ChangeNotifier {
         .replaceAll(RegExp(r'^_+|_+$'), '');
   }
 
-  Future<void> convertPlanToShoppingListNext7Days() async {
+  /// Helper: Converts an ingredient quantity to grams using unit conversion + density lookup.
+  /// Returns null if conversion is not possible.
+  double? _gramsForIngredient(Ingredient ing) {
+    if (ing.quantity == null) return null;
+    final canon = UnitConverter.normalizeUnit(ing.unit);
+    if (canon == null) return null;
+
+    final uv = UnitConverter.convert(
+      ing.quantity!,
+      ing.unit,
+      UnitSystem.metric,
+      ingredient: ing.item ?? ing.raw,
+    );
+    if (uv.qty == null || uv.unit == null) return null;
+
+    switch (uv.unit) {
+      case 'g':
+        return uv.qty;
+      case 'kg':
+        return uv.qty! * 1000.0;
+      case 'ml':
+        final dens = UnitConverter.densityOf(ing.item ?? ing.raw);
+        if (dens == null) return null;
+        return uv.qty! * dens.gPerMl;
+      case 'l':
+        final dens = UnitConverter.densityOf(ing.item ?? ing.raw);
+        if (dens == null) return null;
+        return uv.qty! * 1000.0 * dens.gPerMl;
+      default:
+        return null;
+    }
+  }
+
+  /// Helper: Attempts to merge a new ingredient into an existing ShoppingItem.
+  /// Returns the merged ShoppingItem if merge succeeds, or null if no merge is possible.
+  ShoppingItem? _tryMergeIngredient(ShoppingItem existing, Ingredient ing) {
+    // If both have the same canonical unit (e.g., both 'tbsp' or both 'ml'), sum directly and keep that unit
+    final enCan = UnitConverter.normalizeUnit(existing.ingredient.unit);
+    final inCan = UnitConverter.normalizeUnit(ing.unit);
+    if (enCan != null &&
+        inCan != null &&
+        enCan == inCan &&
+        existing.ingredient.quantity != null &&
+        ing.quantity != null) {
+      final sum = (existing.ingredient.quantity ?? 0) + (ing.quantity ?? 0);
+      final mergedIngredient = Ingredient(
+        raw: existing.ingredient.raw,
+        quantity: sum,
+        unit: existing.ingredient.unit,
+        item: existing.ingredient.item ?? ing.item,
+        notes: existing.ingredient.notes ?? ing.notes,
+      );
+
+      return existing.copyWith(
+        ingredient: mergedIngredient,
+        recipeId: null,
+        createdAt: existing.createdAt,
+      );
+    }
+
+    // Case: Both have no recognized unit (null) — merge by summing quantities
+    if (enCan == null && inCan == null) {
+      // If both have quantities, sum them. If both lack quantities, just mark as needed (no count)
+      final existingHasQty = existing.ingredient.quantity != null;
+      final newHasQty = ing.quantity != null;
+
+      double? sum;
+      if (existingHasQty && newHasQty) {
+        sum = (existing.ingredient.quantity ?? 0) + (ing.quantity ?? 0);
+      } else if (existingHasQty || newHasQty) {
+        // One has qty, one doesn't — use the one that has it
+        sum = existing.ingredient.quantity ?? ing.quantity;
+      }
+      // else: neither has qty, sum stays null
+
+      final mergedIngredient = Ingredient(
+        raw: existing.ingredient.raw,
+        quantity: sum,
+        unit: existing.ingredient.unit,
+        item: existing.ingredient.item ?? ing.item,
+        notes: existing.ingredient.notes ?? ing.notes,
+      );
+
+      return existing.copyWith(
+        ingredient: mergedIngredient,
+        recipeId: null,
+        createdAt: existing.createdAt,
+      );
+    }
+
+    // Try to merge quantities where possible by converting to grams (when density/units allow)
+    final existingGrams = _gramsForIngredient(existing.ingredient);
+    final newGrams = _gramsForIngredient(ing);
+
+    if (existingGrams != null && newGrams != null) {
+      final total = existingGrams + newGrams;
+      final mergedIngredient = Ingredient(
+        raw: existing.ingredient.raw,
+        quantity: total,
+        unit: 'g',
+        item: existing.ingredient.item ?? ing.item,
+        notes: existing.ingredient.notes ?? ing.notes,
+      );
+
+      return existing.copyWith(
+        ingredient: mergedIngredient,
+        recipeId: null,
+        createdAt: existing.createdAt,
+      );
+    }
+
+    // Could not merge
+    return null;
+  }
+
+  /// Adds all ingredients from a recipe to the shopping list, merging with existing items.
+  Future<void> addRecipeIngredientsToShoppingList(String recipeId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // Find the recipe
+    final recipe = recipes.firstWhere(
+      (r) => r.id == recipeId,
+      orElse: () => Recipe.create(id: 'x', title: ''),
+    );
+    if (recipe.id == 'x') return;
+
+    final existingById = {for (final i in shoppingListItems) i.id: i};
+    final toUpsert = <String, ShoppingItem>{};
+
+    for (final ing in recipe.ingredients) {
+      final id = stableIdForIngredient(ing);
+      if (id.isEmpty) continue;
+
+      final existing = toUpsert[id] ?? existingById[id];
+
+      if (existing == null) {
+        toUpsert[id] = ShoppingItem(
+          id: id,
+          ingredient: ing,
+          recipeId: recipe.id,
+          category: categoryForIngredient(ing),
+          checked: false,
+          createdAt: DateTime.now(),
+        );
+        continue;
+      }
+
+      // Try to merge
+      final merged = _tryMergeIngredient(existing, ing);
+      if (merged != null) {
+        toUpsert[id] = merged;
+        continue;
+      }
+
+      // Could not merge cleanly — create a separate entry so we don't lose quantities
+      var newId = id;
+      var suffix = 1;
+      while (toUpsert.containsKey(newId) || existingById.containsKey(newId)) {
+        newId = '$id#${suffix++}';
+      }
+
+      toUpsert[newId] = ShoppingItem(
+        id: newId,
+        ingredient: ing,
+        recipeId: recipe.id,
+        category: categoryForIngredient(ing),
+        checked: existing?.checked ?? false,
+        createdAt: DateTime.now(),
+      );
+    }
+
+    if (toUpsert.isEmpty) return;
+
+    final merged = {...existingById, ...toUpsert};
+
+    shoppingListItems = merged.values.toList()
+      ..sort((a, b) {
+        final c = a.category.compareTo(b.category);
+        if (c != 0) return c;
+        return a.ingredient.raw.toLowerCase().compareTo(
+          b.ingredient.raw.toLowerCase(),
+        );
+      });
+
+    notifyListeners();
+
+    final batch = _db.batch();
+    final col = _db
+        .collection('users')
+        .doc(user.uid)
+        .collection('shoppinglist');
+
+    for (final item in toUpsert.values) {
+      batch.set(col.doc(item.id), item.toFirestore(), SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
+  Future<void> convertPlanToShoppingList() async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -461,18 +661,41 @@ class Notifier extends ChangeNotifier {
         final id = stableIdForIngredient(ing);
         if (id.isEmpty) continue;
 
-        final existing = existingById[id];
+        final existing = toUpsert[id] ?? existingById[id];
 
-        toUpsert.putIfAbsent(
-          id,
-          () => ShoppingItem(
+        if (existing == null) {
+          toUpsert[id] = ShoppingItem(
             id: id,
             ingredient: ing,
             recipeId: r.id,
             category: categoryForIngredient(ing),
-            checked: existing?.checked ?? false,
-            createdAt: existing?.createdAt ?? DateTime.now(),
-          ),
+            checked: false,
+            createdAt: DateTime.now(),
+          );
+          continue;
+        }
+
+        // Try to merge using helper
+        final merged = _tryMergeIngredient(existing, ing);
+        if (merged != null) {
+          toUpsert[id] = merged;
+          continue;
+        }
+
+        // Could not merge cleanly — create a separate entry so we don't lose quantities
+        var newId = id;
+        var suffix = 1;
+        while (toUpsert.containsKey(newId) || existingById.containsKey(newId)) {
+          newId = '$id#${suffix++}';
+        }
+
+        toUpsert[newId] = ShoppingItem(
+          id: newId,
+          ingredient: ing,
+          recipeId: r.id,
+          category: categoryForIngredient(ing),
+          checked: existing?.checked ?? false,
+          createdAt: DateTime.now(),
         );
       }
     }
@@ -653,18 +876,56 @@ class Notifier extends ChangeNotifier {
   }
 
   Future<void> addPlannedDinnerForDay({
-    required DateTime day,
+    DateTime? day,
     required String recipeId,
   }) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    final d = _dateOnly(day);
+    // If day is null, find the first day without a committed recipe
+    DateTime targetDay;
+    if (day == null) {
+      final today = _dateOnly(DateTime.now());
+      targetDay = today;
 
-    final alreadyHasDinner = plannedMeals.any(
-      (pm) => _dateOnly(pm.day) == d && pm.meal == 'dinner',
+      // Find first day without a committed dinner
+      while (plannedMeals.any(
+        (pm) =>
+            _dateOnly(pm.day) == targetDay &&
+            pm.meal == 'dinner' &&
+            pm.status == PlannedMealStatus.committed,
+      )) {
+        targetDay = targetDay.add(const Duration(days: 1));
+      }
+    } else {
+      targetDay = _dateOnly(day);
+    }
+
+    // Find any suggested recipe for this day and remove it
+    PlannedMeal? suggestedToRemove;
+    for (final pm in plannedMeals) {
+      if (_dateOnly(pm.day) == targetDay &&
+          pm.meal == 'dinner' &&
+          pm.status == PlannedMealStatus.suggested) {
+        suggestedToRemove = pm;
+        break;
+      }
+    }
+
+    if (suggestedToRemove != null) {
+      plannedMeals = plannedMeals
+          .where((pm) => pm.id != suggestedToRemove!.id)
+          .toList();
+    }
+
+    // Check if there's already a committed dinner
+    final alreadyHasCommitted = plannedMeals.any(
+      (pm) =>
+          _dateOnly(pm.day) == targetDay &&
+          pm.meal == 'dinner' &&
+          pm.status == PlannedMealStatus.committed,
     );
-    if (alreadyHasDinner) return;
+    if (alreadyHasCommitted) return;
 
     final ref = _db
         .collection('users')
@@ -675,7 +936,7 @@ class Notifier extends ChangeNotifier {
     final pm = PlannedMeal(
       id: ref.id,
       recipeId: recipeId,
-      day: d,
+      day: targetDay,
       meal: 'dinner',
       status: PlannedMealStatus.committed,
       reason: 'Added by you',
@@ -685,7 +946,20 @@ class Notifier extends ChangeNotifier {
     plannedMeals = [...plannedMeals, pm];
     notifyListeners();
 
-    await ref.set(pm.toFirestore());
+    // Batch delete suggested and add new committed
+    final batch = _db.batch();
+    if (suggestedToRemove != null) {
+      batch.delete(
+        _db
+            .collection('users')
+            .doc(user.uid)
+            .collection('plannedmeals')
+            .doc(suggestedToRemove.id),
+      );
+    }
+
+    batch.set(ref, pm.toFirestore());
+    await batch.commit();
   }
 
   Future<void> acceptPlannedMeal(String plannedMealId) async {
@@ -905,13 +1179,13 @@ class Notifier extends ChangeNotifier {
     required String id,
     required String title,
     String? description,
-    List<String> imageUrls = const [],
-    List<Ingredient> ingredients = const [],
-    List<String> steps = const [],
-    List<String> tags = const [],
+    List<String>? imageUrls,
+    List<Ingredient>? ingredients,
+    List<String>? steps,
+    List<String>? tags,
     int? timeMinutes,
     int? servings,
-    String sourceType = 'manual',
+    String? sourceType,
     String? sourceUrl,
     String? sourceAuthor,
     String? sourceTitle,
@@ -930,27 +1204,25 @@ class Notifier extends ChangeNotifier {
     final cleanTitle = title.trim();
     if (cleanTitle.isEmpty) return null;
 
-    final cleanImages = imageUrls
-        .map((u) => u.trim())
-        .where((u) => u.isNotEmpty)
-        .toList();
-    final cleanTags = tags
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
-    final cleanSteps = steps
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    final cleanIngredients = ingredients
-        .where((i) => i.raw.trim().isNotEmpty)
-        .toList();
+    // Only update fields that were explicitly provided
+    final cleanImages = imageUrls != null
+        ? imageUrls.map((u) => u.trim()).where((u) => u.isNotEmpty).toList()
+        : null;
+    final cleanTags = tags != null
+        ? tags.map((t) => t.trim()).where((t) => t.isNotEmpty).toList()
+        : null;
+    final cleanSteps = steps != null
+        ? steps.map((s) => s.trim()).where((s) => s.isNotEmpty).toList()
+        : null;
+    final cleanIngredients = ingredients != null
+        ? ingredients.where((i) => i.raw.trim().isNotEmpty).toList()
+        : null;
 
     final updated = old.copyWith(
       title: cleanTitle,
-      description: (description?.trim().isEmpty ?? true)
-          ? null
-          : description!.trim(),
+      description: description != null
+          ? (description.trim().isEmpty ? null : description.trim())
+          : null,
       imageUrls: cleanImages,
       ingredients: cleanIngredients,
       steps: cleanSteps,
@@ -958,18 +1230,22 @@ class Notifier extends ChangeNotifier {
       timeMinutes: timeMinutes,
       servings: servings,
       sourceType: sourceType,
-      sourceUrl: (sourceUrl?.trim().isEmpty ?? true) ? null : sourceUrl!.trim(),
-      sourceAuthor: (sourceAuthor?.trim().isEmpty ?? true)
-          ? null
-          : sourceAuthor!.trim(),
-      sourceTitle: (sourceTitle?.trim().isEmpty ?? true)
-          ? null
-          : sourceTitle!.trim(),
-      cookbookId: (cookbookId?.trim().isEmpty ?? true)
-          ? null
-          : cookbookId!.trim(),
+      sourceUrl: sourceUrl != null
+          ? (sourceUrl.trim().isEmpty ? null : sourceUrl.trim())
+          : null,
+      sourceAuthor: sourceAuthor != null
+          ? (sourceAuthor.trim().isEmpty ? null : sourceAuthor.trim())
+          : null,
+      sourceTitle: sourceTitle != null
+          ? (sourceTitle.trim().isEmpty ? null : sourceTitle.trim())
+          : null,
+      cookbookId: cookbookId != null
+          ? (cookbookId.trim().isEmpty ? null : cookbookId.trim())
+          : null,
       pageNumber: pageNumber,
-      notes: (notes?.trim().isEmpty ?? true) ? null : notes!.trim(),
+      notes: notes != null
+          ? (notes.trim().isEmpty ? null : notes.trim())
+          : null,
       updatedAt: DateTime.now(),
     );
 
