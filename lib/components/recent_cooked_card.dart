@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/cookevent.dart';
+import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/recent_cooked_page.dart';
 import 'package:recipe_app/pages/recipe_page.dart';
@@ -95,9 +96,16 @@ class RecentCookedCard extends StatelessWidget {
 
                 ...List.generate(last3.length, (i) {
                   final e = last3[i];
-                  final recipe = notifier.recipes.firstWhere(
-                    (r) => r.id == e.recipeId,
-                  );
+                  Recipe? recipe;
+                  for (final r in notifier.recipes) {
+                    if (r.id == e.recipeId) {
+                      recipe = r;
+                      break;
+                    }
+                  }
+                  if (recipe == null) {
+                    return SizedBox.shrink();
+                  }
 
                   final title = recipe.title;
                   final subtitleBits = <String>[
@@ -116,7 +124,7 @@ class RecentCookedCard extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => RecipePage(id: recipe.id),
+                            builder: (_) => RecipePage(id: recipe!.id),
                           ),
                         );
                       },

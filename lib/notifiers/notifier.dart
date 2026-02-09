@@ -10,6 +10,7 @@ import 'package:recipe_app/classes/plannedmeal.dart';
 import 'package:recipe_app/classes/recipe.dart';
 import 'package:recipe_app/classes/shoppingitem.dart';
 import 'package:recipe_app/classes/unit_value.dart';
+import 'package:recipe_app/notifiers/ingred_catergories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Notifier extends ChangeNotifier {
@@ -345,7 +346,7 @@ class Notifier extends ChangeNotifier {
     return committed ?? suggested;
   }
 
-  Future<void> addToShoppingList(String item) async {
+  Future<void> addToShoppingList(Ingredient ingred) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -358,8 +359,8 @@ class Notifier extends ChangeNotifier {
     final newItem = ShoppingItem(
       id: ref.id,
       createdAt: DateTime.now(),
-      name: item,
-      category: 'Other',
+      ingredient: ingred,
+      category: categoryForIngredient(ingred),
       checked: false,
     );
 
@@ -425,6 +426,15 @@ class Notifier extends ChangeNotifier {
         .update({'checked': updated.checked});
   }
 
+  String stableIdForIngredient(Ingredient ing) {
+    final key = (ing.item?.isNotEmpty ?? false) ? ing.item! : ing.raw;
+    return key
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+  }
+
   Future<void> convertPlanToShoppingListNext7Days() async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -437,42 +447,8 @@ class Notifier extends ChangeNotifier {
           !_dateOnly(pm.day).isBefore(today),
     );
 
-    String categoryFor(String name) {
-      final n = name.toLowerCase();
-      if (n.contains('milk') ||
-          n.contains('cheese') ||
-          n.contains('yogurt') ||
-          n.contains('butter'))
-        return 'Dairy';
-      if (n.contains('chicken') ||
-          n.contains('beef') ||
-          n.contains('pork') ||
-          n.contains('fish') ||
-          n.contains('salmon'))
-        return 'Meat & Fish';
-      if (n.contains('onion') ||
-          n.contains('garlic') ||
-          n.contains('tomato') ||
-          n.contains('lettuce') ||
-          n.contains('spinach'))
-        return 'Produce';
-      if (n.contains('bread') || n.contains('wrap') || n.contains('tortilla')) {
-        return 'Bakery';
-      }
-      return 'Pantry';
-    }
-
-    String stableIdForName(String name) {
-      return name
-          .trim()
-          .toLowerCase()
-          .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-          .replaceAll(RegExp(r'^_+|_+$'), '');
-    }
-
     final existingById = {for (final i in shoppingListItems) i.id: i};
-
-    final toUpsert = <String, ShoppingItem>{}; // id -> item
+    final toUpsert = <String, ShoppingItem>{};
 
     for (final pm in committed) {
       final r = recipes.firstWhere(
@@ -482,13 +458,7 @@ class Notifier extends ChangeNotifier {
       if (r.id == 'x') continue;
 
       for (final ing in r.ingredients) {
-        final name = (ing.item?.trim().isNotEmpty ?? false)
-            ? ing.item!.trim()
-            : ing.raw.trim();
-
-        if (name.isEmpty) continue;
-
-        final id = stableIdForName(name);
+        final id = stableIdForIngredient(ing);
         if (id.isEmpty) continue;
 
         final existing = existingById[id];
@@ -497,10 +467,10 @@ class Notifier extends ChangeNotifier {
           id,
           () => ShoppingItem(
             id: id,
-            name: name,
-            category: categoryFor(name),
-            checked:
-                existing?.checked ?? false, // keep checked if already exists
+            ingredient: ing,
+            recipeId: r.id,
+            category: categoryForIngredient(ing),
+            checked: existing?.checked ?? false,
             createdAt: existing?.createdAt ?? DateTime.now(),
           ),
         );
@@ -509,14 +479,15 @@ class Notifier extends ChangeNotifier {
 
     if (toUpsert.isEmpty) return;
 
-    // merge with existing list (keep anything already there, update/add by id)
     final merged = {...existingById, ...toUpsert};
 
     shoppingListItems = merged.values.toList()
       ..sort((a, b) {
         final c = a.category.compareTo(b.category);
         if (c != 0) return c;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        return a.ingredient.raw.toLowerCase().compareTo(
+          b.ingredient.raw.toLowerCase(),
+        );
       });
 
     notifyListeners();
@@ -528,8 +499,7 @@ class Notifier extends ChangeNotifier {
         .collection('shoppinglist');
 
     for (final item in toUpsert.values) {
-      final ref = col.doc(item.id);
-      batch.set(ref, item.toFirestore(), SetOptions(merge: true));
+      batch.set(col.doc(item.id), item.toFirestore(), SetOptions(merge: true));
     }
 
     await batch.commit();

@@ -15,6 +15,8 @@ class ParsedIngredientPill extends StatefulWidget {
   final bool isSub;
   final double scale;
   final UnitSystem unitSystem;
+  final bool checked;
+  final String? originRecipe;
 
   const ParsedIngredientPill({
     super.key,
@@ -26,6 +28,8 @@ class ParsedIngredientPill extends StatefulWidget {
     required this.showSubOption,
     required this.unitSystem,
     required this.scale,
+    this.checked = true,
+    this.originRecipe,
   });
 
   @override
@@ -66,19 +70,6 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
     );
   }
 
-  String viewModeLabel(UnitSystem unitSystem) {
-    switch (unitSystem) {
-      case UnitSystem.original:
-        return "Original";
-      case UnitSystem.metric:
-        return "Metric";
-      case UnitSystem.imperial_cups:
-        return "Imperial (cups)";
-      case UnitSystem.imperial_ozs:
-        return "Imperial (ozs)";
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final qty = widget.ingredient.quantity;
@@ -108,10 +99,14 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (!widget.isSub)
-                        const Icon(
-                          Icons.check_circle,
+                        Icon(
+                          widget.checked
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
                           size: 16,
-                          color: AppColors.successColor,
+                          color: widget.checked
+                              ? AppColors.successColor
+                              : AppColors.primaryColour.withAlpha(100),
                         ),
                       if (!widget.isSub) const SizedBox(width: 6),
                       if (left.isNotEmpty)
@@ -182,12 +177,36 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
                       widget.ingredient.notes!.trim().isNotEmpty)
                     Row(
                       children: [
-                        const Icon(Icons.notes, size: 16, color: Colors.grey),
+                        Icon(
+                          Icons.notes,
+                          size: 16,
+                          color: AppColors.primaryColour.withAlpha(100),
+                        ),
                         const SizedBox(width: 6),
 
                         Expanded(
                           child: Text(
                             '${widget.ingredient.notes}',
+                            style: TextStyles.inputedText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (widget.originRecipe != null)
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.menu_book_outlined,
+                          size: 16,
+                          color: AppColors.primaryColour.withAlpha(100),
+                        ),
+                        const SizedBox(width: 6),
+
+                        Expanded(
+                          child: Text(
+                            '${widget.originRecipe}',
                             style: TextStyles.inputedText,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -224,4 +243,37 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
       },
     );
   }
+}
+
+Ingredient displayIngredient(
+  Ingredient base,
+  UnitSystem unitSystem,
+  double scale,
+) {
+  final qScaled = (base.quantity == null) ? null : base.quantity! * scale;
+
+  if (unitSystem == UnitSystem.original) {
+    return Ingredient(
+      raw: base.raw,
+      quantity: qScaled,
+      unit: base.unit,
+      item: base.item,
+      notes: base.notes,
+    );
+  }
+
+  final converted = UnitConverter.convert(
+    qScaled,
+    base.unit,
+    unitSystem,
+    ingredient: base.item,
+  );
+
+  return Ingredient(
+    raw: base.raw, // keep original raw as “source of truth”
+    quantity: converted.qty,
+    unit: converted.unit,
+    item: base.item,
+    notes: base.notes,
+  );
 }

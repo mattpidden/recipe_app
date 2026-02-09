@@ -465,10 +465,8 @@ class _CookingModePageState extends State<CookingModePage> {
         return "Original";
       case UnitSystem.metric:
         return "Metric";
-      case UnitSystem.imperial_cups:
-        return "Imperial (cups)";
-      case UnitSystem.imperial_ozs:
-        return "Imperial (ozs)";
+      case UnitSystem.imperial:
+        return "Imperial";
     }
   }
 
@@ -1102,12 +1100,8 @@ class _CookingModePageState extends State<CookingModePage> {
                                                                                   UnitSystem.metric,
                                                                                 ),
                                                                                 option(
-                                                                                  "Imperial (cups)",
-                                                                                  UnitSystem.imperial_cups,
-                                                                                ),
-                                                                                option(
-                                                                                  "Imperial (ozs)",
-                                                                                  UnitSystem.imperial_ozs,
+                                                                                  "Imperial",
+                                                                                  UnitSystem.imperial,
                                                                                 ),
                                                                               ],
                                                                             ),

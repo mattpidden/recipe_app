@@ -66,9 +66,16 @@ class _RecentCookedPageState extends State<RecentCookedPage> {
                       children: [
                         ...List.generate(events.length, (i) {
                           final e = events[i];
-                          final recipe = notifier.recipes.firstWhere(
-                            (r) => r.id == e.recipeId,
-                          );
+                          Recipe? recipe;
+                          for (final r in notifier.recipes) {
+                            if (r.id == e.recipeId) {
+                              recipe = r;
+                              break;
+                            }
+                          }
+                          if (recipe == null) {
+                            return SizedBox.shrink();
+                          }
 
                           return Padding(
                             padding: EdgeInsets.only(
@@ -83,7 +90,7 @@ class _RecentCookedPageState extends State<RecentCookedPage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => RecipePage(id: recipe.id),
+                                    builder: (_) => RecipePage(id: recipe!.id),
                                   ),
                                 );
                               },

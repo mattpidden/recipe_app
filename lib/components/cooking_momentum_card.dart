@@ -27,7 +27,7 @@ class CookingMomentumCard extends StatelessWidget {
 
         // --- Current streak ---
         int streak = 0;
-        for (int i = 0; i < 30; i++) {
+        for (int i = 1; i < 31; i++) {
           final d = today.subtract(Duration(days: i));
           if (cookedDays.contains(d)) {
             streak++;
@@ -123,12 +123,29 @@ class CookingMomentumCard extends StatelessWidget {
                             : AppColors.backgroundColour,
                         borderRadius: BorderRadius.circular(6),
                       ),
+                      child: active
+                          ? Image.asset(
+                              'assets/white_logo.png',
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
                   );
                 }),
               ),
               const SizedBox(height: 2),
-              Text('Last 7 days', style: TextStyles.tinyTextPrimary),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Last 7 days',
+                      style: TextStyles.tinyTextPrimary,
+                    ),
+                  ),
+                  Text('Today', style: TextStyles.tinyTextPrimary),
+                  const SizedBox(width: 4),
+                ],
+              ),
             ],
           ),
         );

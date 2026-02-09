@@ -43,47 +43,6 @@ class _RecipePageState extends State<RecipePage> {
   final Map<int, List<Ingredient>> _subsByIndex = {};
   late final ConfettiController _confettiController;
   bool savedCookedSheet = false;
-  Ingredient _displayIngredient(Ingredient base, UnitSystem unitSystem) {
-    final qScaled = (base.quantity == null) ? null : base.quantity! * _scale;
-
-    if (unitSystem == UnitSystem.original) {
-      return Ingredient(
-        raw: base.raw,
-        quantity: qScaled,
-        unit: base.unit,
-        item: base.item,
-        notes: base.notes,
-      );
-    }
-
-    final converted = UnitConverter.convert(
-      qScaled,
-      base.unit,
-      unitSystem,
-      ingredient: base.item,
-    );
-
-    return Ingredient(
-      raw: base.raw, // keep original raw as “source of truth”
-      quantity: converted.qty,
-      unit: converted.unit,
-      item: base.item,
-      notes: base.notes,
-    );
-  }
-
-  String viewModeLabel(UnitSystem unitSystem) {
-    switch (unitSystem) {
-      case UnitSystem.original:
-        return "Original";
-      case UnitSystem.metric:
-        return "Metric";
-      case UnitSystem.imperial_cups:
-        return "Imperial (cups)";
-      case UnitSystem.imperial_ozs:
-        return "Imperial (ozs)";
-    }
-  }
 
   void handleDecreaseServing() {
     if (_currentServings == null) return;
@@ -719,12 +678,8 @@ class _RecipePageState extends State<RecipePage> {
                                                   UnitSystem.metric,
                                                 ),
                                                 option(
-                                                  "Imperial (cups)",
-                                                  UnitSystem.imperial_cups,
-                                                ),
-                                                option(
-                                                  "Imperial (ozs)",
-                                                  UnitSystem.imperial_ozs,
+                                                  "Imperial",
+                                                  UnitSystem.imperial,
                                                 ),
                                               ],
                                             ),
@@ -767,9 +722,10 @@ class _RecipePageState extends State<RecipePage> {
                                   recipe.ingredients.length,
                                   (i) {
                                     final ingred = recipe.ingredients[i];
-                                    final displayIngred = _displayIngredient(
+                                    final displayIngred = displayIngredient(
                                       recipe.ingredients[i],
                                       notifier.unitSystem,
+                                      _scale,
                                     );
                                     return Padding(
                                       padding: const EdgeInsets.only(bottom: 6),

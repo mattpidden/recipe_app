@@ -1,5 +1,7 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/components/inputs.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/styles/colours.dart';
@@ -15,19 +17,47 @@ class AddShoppingItemSheet extends StatefulWidget {
 }
 
 class AddShoppingItemSheetState extends State<AddShoppingItemSheet> {
-  final _name = TextEditingController();
-  bool saving = false;
+  final _ingredientInput = TextEditingController();
+  bool _ingredientParsing = false;
 
   @override
   void initState() {
     super.initState();
-    _name.text = widget.initialName;
+    _ingredientInput.text = widget.initialName;
   }
 
   @override
   void dispose() {
-    _name.dispose();
+    _ingredientInput.dispose();
     super.dispose();
+  }
+
+  Future<void> _addIngredientFromInput() async {
+    final raw = _ingredientInput.text.trim();
+    if (raw.isEmpty || _ingredientParsing) return;
+
+    setState(() {
+      _ingredientParsing = true;
+    });
+
+    try {
+      final fn = FirebaseFunctions.instanceFor(
+        region: 'europe-west2',
+      ).httpsCallable('parseIngredient');
+
+      final res = await fn.call({'raw': raw});
+      final ingred = Ingredient.fromMap(
+        Map<String, dynamic>.from(res.data as Map),
+      );
+      final notifier = context.read<Notifier>();
+      await notifier.addToShoppingList(ingred);
+      setState(() {
+        _ingredientInput.clear();
+      });
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _ingredientParsing = false);
+    }
   }
 
   @override
@@ -78,25 +108,20 @@ class AddShoppingItemSheetState extends State<AddShoppingItemSheet> {
                     const SizedBox(height: 10),
 
                     const Text('Ingredient', style: TextStyles.subheading),
-                    Input(controller: _name, hint: 'e.g. Cherry tomatoes'),
+                    Input(
+                      controller: _ingredientInput,
+                      hint: 'e.g. Cherry tomatoes',
+                    ),
 
                     const SizedBox(height: 14),
 
                     Consumer<Notifier>(
                       builder: (context, notifier, _) {
                         return GestureDetector(
-                          onTap: saving
+                          onTap: _ingredientParsing
                               ? null
                               : () async {
-                                  final name = _name.text.trim();
-
-                                  if (name.isEmpty) return;
-
-                                  setState(() => saving = true);
-
-                                  await notifier.addToShoppingList(name);
-
-                                  setState(() => saving = false);
+                                  await _addIngredientFromInput();
                                   if (context.mounted) Navigator.pop(context);
                                 },
                           child: Container(
@@ -107,7 +132,7 @@ class AddShoppingItemSheetState extends State<AddShoppingItemSheet> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Center(
-                              child: saving
+                              child: _ingredientParsing
                                   ? const SizedBox(
                                       height: 18,
                                       width: 18,
