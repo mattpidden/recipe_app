@@ -313,7 +313,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         vertical: 10,
-                        horizontal: 20,
+                        horizontal: 10,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -343,9 +343,27 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         activeColor: Colors.white,
                         tabBackgroundColor: AppColors.primaryColour,
                         tabs: const [
-                          GButton(icon: Icons.home, text: 'Home'),
-                          GButton(icon: Icons.menu_book, text: 'Recipes'),
-                          GButton(icon: Icons.calendar_today, text: 'Plan'),
+                          GButton(
+                            icon: Icons.home,
+                            text: 'Home',
+
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              topRight: Radius.circular(10),
+                              bottomLeft: Radius.circular(30),
+                              bottomRight: Radius.circular(10),
+                            ),
+                          ),
+                          GButton(
+                            icon: Icons.menu_book,
+                            text: 'Recipes',
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                          ),
+                          GButton(
+                            icon: Icons.calendar_today,
+                            text: 'Plan',
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                          ),
                         ],
                       ),
                     ),
@@ -457,7 +475,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         GestureDetector(
                           onTap: _toggleFab,
                           child: Container(
-                            height: 70,
+                            height: 68,
                             width: 70,
                             decoration: BoxDecoration(
                               color: _fabOpen ? null : AppColors.primaryColour,
@@ -470,7 +488,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                               boxShadow: [
                                 BoxShadow(
                                   color: AppColors.primaryTextColour.withAlpha(
-                                    30,
+                                    50,
                                   ),
                                   blurRadius: 10,
                                   spreadRadius: 1,

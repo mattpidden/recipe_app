@@ -925,7 +925,6 @@ class _RecipePageState extends State<RecipePage> {
                             // Notes
                             if ((recipe.notes ?? '').trim().isNotEmpty) ...[
                               const Text('Notes', style: TextStyles.subheading),
-                              const SizedBox(height: 8),
                               Container(
                                 width: double.infinity,
                                 padding: const EdgeInsets.all(12),
