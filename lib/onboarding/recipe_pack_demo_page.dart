@@ -5,10 +5,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:recipe_app/main_page.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
-import 'package:recipe_app/onboarding/add_recipe_demo_page.dart';
-import 'package:recipe_app/onboarding/cooking_mode_demo_page.dart';
-import 'package:recipe_app/onboarding/meal_plan_demo_page.dart';
 import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
@@ -118,25 +116,11 @@ class _RecipePackDemoPageState extends State<RecipePackDemoPage> {
                           width: double.infinity,
                           child: CupertinoButton.filled(
                             onPressed: () {
-                              if (widget.nextPage == "save") {
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) => const AddRecipeDemoPage(),
-                                  ),
-                                );
-                              } else if (widget.nextPage == "decide") {
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) => const MealPlanDemoPage(),
-                                  ),
-                                );
-                              } else if (widget.nextPage == "cook") {
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (_) => const CookingModeDemoPage(),
-                                  ),
-                                );
-                              }
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const MainPage(),
+                                ),
+                              );
                             },
                             child: const Text("Continue"),
                           ),

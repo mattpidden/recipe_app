@@ -57,7 +57,7 @@ class TodaysPlannedMealCard extends StatelessWidget {
         if (recipe == null) {
           return Container(
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),

@@ -161,7 +161,7 @@ class _ParsedIngredientPillState extends State<ParsedIngredientPill> {
                                     ),
                                   )
                                 : const Icon(
-                                    Icons.autorenew,
+                                    Icons.sync_alt,
                                     size: 16,
                                     color: Colors.grey,
                                   ),

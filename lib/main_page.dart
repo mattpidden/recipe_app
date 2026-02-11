@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'dart:ui';
-
 import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseFirestore;
 import 'package:confetti/confetti.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:recipe_app/pages/add_cookbook_manually_page.dart';
 import 'package:recipe_app/pages/add_recipe_manually_page.dart';
@@ -37,7 +35,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _hideNavBar = false;
   String? _pendingShared;
   bool _pushed = false;
-  bool _hasPro = false;
   bool _checkingAccess = true;
   late final ConfettiController _confettiController;
 
@@ -178,58 +175,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   Future<void> _bootstrap() async {
     _setSharedPrefs();
     await signInAnonymouslyIfNeeded();
-    await _checkEntitlement();
-    if (_hasPro) {
-      _checkShared();
-      checkForUpdate(context);
-    }
-  }
-
-  Future<void> _checkEntitlement() async {
-    try {
-      final customerInfo = await Purchases.getCustomerInfo();
-      final active = customerInfo.entitlements.active.containsKey(
-        "RecipeApp Pro",
-      );
-      print(customerInfo.entitlements.active.toString());
-      setState(() {
-        _hasPro = active;
-        _checkingAccess = false;
-      });
-
-      if (!active) {
-        _presentBlockingPaywall();
-      }
-    } catch (e) {
-      debugPrint("Entitlement check failed: $e");
-      setState(() => _checkingAccess = false);
-      _presentBlockingPaywall();
-    }
-  }
-
-  Future<void> _presentBlockingPaywall() async {
-    final offerings = await Purchases.getOfferings();
-    final offering = offerings.all["default"] ?? offerings.current;
-    final result = await RevenueCatUI.presentPaywall(offering: offering);
-    debugPrint("Paywall result: $result");
-
-    // Re-check entitlement after dismissal
-    await _checkEntitlement();
-    if (_hasPro) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        HapticFeedback.lightImpact();
-        _confettiController.play();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Welcome to Pro! Let us cook 👀',
-              style: TextStyles.smallHeadingSecondary,
-            ),
-            backgroundColor: AppColors.primaryColour,
-          ),
-        );
-      });
-    }
+    _checkShared();
+    checkForUpdate(context);
   }
 
   void _setSharedPrefs() async {
@@ -246,7 +193,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && _hasPro) {
+    if (state == AppLifecycleState.resumed) {
       _checkShared();
     }
   }
@@ -260,19 +207,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
           child: CircularProgressIndicator(
             strokeWidth: 2,
             color: AppColors.primaryColour,
-          ),
-        ),
-      );
-    }
-
-    if (!_hasPro) {
-      return const Scaffold(
-        backgroundColor: AppColors.backgroundColour,
-        body: Center(
-          child: Text(
-            "Upgrade to Pro and let us cook 👀",
-            style: TextStyles.smallHeading,
-            textAlign: TextAlign.center,
           ),
         ),
       );

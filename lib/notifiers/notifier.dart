@@ -26,6 +26,7 @@ class Notifier extends ChangeNotifier {
   List<String> partnerCodes = [];
   List<PlannedMeal> plannedMeals = [];
   List<ShoppingItem> shoppingListItems = [];
+  int totalRecipesAdded = 0;
 
   final List<String> allTags = [
     // Diet & Lifestyle
@@ -296,6 +297,9 @@ class Notifier extends ChangeNotifier {
           .doc(user.uid)
           .collection('shoppinglist')
           .get();
+
+      final userDocSnap = await _db.collection('users').doc(user.uid).get();
+      totalRecipesAdded = userDocSnap.data()?['totalRecipesAdded'] ?? 0;
 
       recipes = recipesSnap.docs.map(Recipe.fromFirestore).toList();
       // for each cookbook, add all the recipes with its id to its list
@@ -1170,7 +1174,13 @@ class Notifier extends ChangeNotifier {
     await ref.set(recipe.toFirestore());
 
     recipes = [...recipes, recipe];
+    totalRecipesAdded++;
     notifyListeners();
+
+    // Update the user's total recipe count in Firebase
+    await _db.collection('users').doc(user.uid).set({
+      'totalRecipesAdded': totalRecipesAdded,
+    }, SetOptions(merge: true));
 
     return recipe;
   }

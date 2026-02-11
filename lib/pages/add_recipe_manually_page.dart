@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:confetti/confetti.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,10 +15,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:recipe_app/classes/ingredient.dart';
 import 'package:recipe_app/classes/recipe.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:recipe_app/classes/unit_value.dart';
 import 'package:recipe_app/components/ingredient_pill.dart';
 import 'package:recipe_app/components/inputs.dart';
-import 'package:recipe_app/main_page.dart';
 import 'package:recipe_app/notifiers/notifier.dart';
 import 'package:recipe_app/pages/recipe_page.dart';
 import 'package:recipe_app/styles/colours.dart';
@@ -90,6 +92,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
   bool _scanning = false;
   bool _scrapping = false;
   late final ConfettiController _confettiController;
+  bool _blockedByFreeLimit = false;
 
   void showCorfetti() {
     HapticFeedback.lightImpact();
@@ -134,6 +137,11 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     if (widget.draftRecipe != null) {
       importDraftRecipe();
     }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Check entitlement and free limit once UI is ready
+      _checkProAndBlock();
+    });
   }
 
   @override
@@ -162,6 +170,65 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     _pageNumber.dispose();
 
     super.dispose();
+  }
+
+  Future<void> _checkProAndBlock() async {
+    try {
+      final notifier = context.read<Notifier>();
+      final total = notifier.totalRecipesAdded;
+
+      if (total < 3) {
+        setState(() => _blockedByFreeLimit = false);
+        return;
+      }
+
+      final customerInfo = await Purchases.getCustomerInfo();
+      final active = customerInfo.entitlements.active.containsKey(
+        "RecipeApp Pro",
+      );
+
+      if (!active) {
+        setState(() => _blockedByFreeLimit = true);
+      } else {
+        setState(() => _blockedByFreeLimit = false);
+      }
+    } catch (e) {
+      debugPrint('Pro check failed: $e');
+      // On error, be conservative and block if the count is high
+      final notifier = context.read<Notifier>();
+      if (notifier.totalRecipesAdded >= 3) {
+        setState(() => _blockedByFreeLimit = true);
+      }
+    }
+  }
+
+  Future<void> _onSaveTap() async {
+    if (_saving || _scanning || _scrapping) return;
+
+    // Ensure we have latest pro status
+    await _checkProAndBlock();
+
+    // If not editing and blocked by free limit, show paywall
+    if (!widget.editingRecipe && _blockedByFreeLimit) {
+      await RevenueCatUI.presentPaywallIfNeeded("RecipeApp Pro");
+      await _checkProAndBlock();
+
+      if (_blockedByFreeLimit) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Upgrade to Pro to add more recipes',
+              style: TextStyles.smallHeadingSecondary,
+            ),
+            backgroundColor: AppColors.primaryColour,
+          ),
+        );
+        return;
+      }
+    }
+
+    await _save();
   }
 
   Future<void> _scanRecipeFromCookbook() async {
@@ -933,7 +1000,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                           GestureDetector(
                             onTap: (_saving || _scanning || _scrapping)
                                 ? null
-                                : _save,
+                                : _onSaveTap,
                             child: _saving
                                 ? const SizedBox(
                                     height: 15,
@@ -1641,7 +1708,7 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                               GestureDetector(
                                 onTap: (_saving || _scanning || _scrapping)
                                     ? null
-                                    : _save,
+                                    : _onSaveTap,
                                 child: Container(
                                   height: 50,
                                   width: double.infinity,
@@ -1699,6 +1766,55 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                 ),
               ),
             ),
+            if (_blockedByFreeLimit)
+              Scaffold(
+                backgroundColor: Colors.transparent,
+                body: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Positioned.fill(
+                    child: GestureDetector(
+                      onTap: () async {
+                        await RevenueCatUI.presentPaywallIfNeeded(
+                          "RecipeApp Pro",
+                        );
+                        await _checkProAndBlock();
+                        if (_blockedByFreeLimit) {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      child: Container(
+                        color: Colors.black.withAlpha(125),
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20.0,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Free plan limit reached',
+                                    style: TextStyles.pageTitle.copyWith(
+                                      color: AppColors.secondaryTextColour,
+                                    ),
+                                  ),
+                                  Text(
+                                    'You have imported ${context.read<Notifier>().totalRecipesAdded} of 3 recipes. Upgrade to Pro to add unlimited recipes.',
+                                    style: TextStyles.bodyTextBoldSecondary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },
