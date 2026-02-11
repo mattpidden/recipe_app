@@ -35,7 +35,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _hideNavBar = false;
   String? _pendingShared;
   bool _pushed = false;
-  bool _checkingAccess = true;
   late final ConfettiController _confettiController;
 
   void _toggleFab() => setState(() => _fabOpen = !_fabOpen);
@@ -200,18 +199,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    if (_checkingAccess) {
-      return const Scaffold(
-        backgroundColor: AppColors.backgroundColour,
-        body: Center(
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.primaryColour,
-          ),
-        ),
-      );
-    }
-
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
