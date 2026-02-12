@@ -5,7 +5,8 @@ import 'package:recipe_app/styles/colours.dart';
 import 'package:recipe_app/styles/text_styles.dart';
 
 class FridgeAiRecipeCard extends StatefulWidget {
-  const FridgeAiRecipeCard({super.key});
+  final bool hasPro;
+  const FridgeAiRecipeCard({super.key, required this.hasPro});
 
   @override
   State<FridgeAiRecipeCard> createState() => _FridgeAiRecipeCardState();
@@ -132,7 +133,7 @@ class _FridgeAiRecipeCardState extends State<FridgeAiRecipeCard> {
               borderRadius: BorderRadius.circular(10),
             ),
             child: TextField(
-              enabled: !_loading,
+              enabled: !_loading && widget.hasPro,
               controller: controller,
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
@@ -149,11 +150,13 @@ class _FridgeAiRecipeCardState extends State<FridgeAiRecipeCard> {
 
           // CTA
           GestureDetector(
-            onTap: !_loading ? _handleCreate : null,
+            onTap: !_loading && widget.hasPro ? _handleCreate : null,
             child: Container(
               height: 50,
               decoration: BoxDecoration(
-                color: AppColors.primaryColour,
+                color: _loading || !widget.hasPro
+                    ? Colors.grey
+                    : AppColors.primaryColour,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(

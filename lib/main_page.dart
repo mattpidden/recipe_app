@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart' show FirebaseFirestore;
-import 'package:confetti/confetti.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -35,7 +34,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   bool _hideNavBar = false;
   String? _pendingShared;
   bool _pushed = false;
-  late final ConfettiController _confettiController;
 
   void _toggleFab() => setState(() => _fabOpen = !_fabOpen);
   void _closeFab() => setState(() => _fabOpen = false);
@@ -162,9 +160,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       CookbookAndRecipePage(),
       PlanPage(),
     ];
-    _confettiController = ConfettiController(
-      duration: const Duration(seconds: 1),
-    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _bootstrap();
@@ -186,7 +181,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _confettiController.dispose();
     super.dispose();
   }
 
@@ -433,23 +427,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: ConfettiWidget(
-                    confettiController: _confettiController,
-                    blastDirection: pi / 2,
-                    emissionFrequency: 1,
-                    numberOfParticles: 10,
-                    gravity: 0.2,
-                    blastDirectionality: BlastDirectionality.explosive,
-                    colors: const [
-                      AppColors.primaryColour,
-                      Colors.blue,
-                      Colors.green,
-                      AppColors.accentColour1,
-                    ],
-                  ),
-                ),
               ],
             ),
             extendBody: true,

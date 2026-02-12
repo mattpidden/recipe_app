@@ -105,21 +105,8 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
     _confettiController = ConfettiController(
       duration: const Duration(seconds: 1),
     );
-    if (widget.openCamera) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _scanRecipeFromCookbook();
-      });
-    }
-    if (widget.importingUrl != null) {
-      _addFromURL.text = widget.importingUrl!;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _scanFromURL(_addFromURL.text);
-      });
-    }
-    if (widget.editingRecipe && widget.oldRecipe != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (widget.editingRecipe && widget.oldRecipe != null) {
         if (!mounted) return;
         _applyRecipeDraft(widget.oldRecipe!.toFirestore());
         _sourceUrl.text = widget.oldRecipe?.sourceUrl ?? '';
@@ -129,18 +116,26 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
         final xfiles = await xfilesFromUrls(urls);
         _images.addAll(xfiles);
         setState(() {});
+      }
+      await _checkProAndBlock();
+      if (_blockedByFreeLimit) return;
+      if (widget.openCamera) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _scanRecipeFromCookbook();
+        });
+      }
+      if (widget.importingUrl != null) {
+        _addFromURL.text = widget.importingUrl!;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _scanFromURL(_addFromURL.text);
+        });
+      }
 
-        // add images
-        // add source too
-      });
-    }
-    if (widget.draftRecipe != null) {
-      importDraftRecipe();
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Check entitlement and free limit once UI is ready
-      _checkProAndBlock();
+      if (widget.draftRecipe != null) {
+        importDraftRecipe();
+      }
     });
   }
 
@@ -961,11 +956,11 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
   Widget build(BuildContext context) {
     return Consumer<Notifier>(
       builder: (context, notifier, child) {
-        return Stack(
-          children: [
-            Scaffold(
-              backgroundColor: AppColors.backgroundColour,
-              body: SafeArea(
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColour,
+          body: Stack(
+            children: [
+              SafeArea(
                 bottom: false,
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
@@ -1746,67 +1741,76 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                   ),
                 ),
               ),
-            ),
-            Align(
-              alignment: Alignment.topCenter,
-              child: IgnorePointer(
-                child: ConfettiWidget(
-                  confettiController: _confettiController,
-                  blastDirection: pi / 2,
-                  emissionFrequency: 1,
-                  numberOfParticles: 10,
-                  gravity: 0.2,
-                  blastDirectionality: BlastDirectionality.explosive,
-                  colors: const [
-                    AppColors.primaryColour,
-                    Colors.blue,
-                    Colors.green,
-                    AppColors.accentColour1,
-                  ],
+
+              Align(
+                alignment: Alignment.topCenter,
+                child: IgnorePointer(
+                  child: ConfettiWidget(
+                    confettiController: _confettiController,
+                    blastDirection: pi / 2,
+                    emissionFrequency: 1,
+                    numberOfParticles: 10,
+                    gravity: 0.2,
+                    blastDirectionality: BlastDirectionality.explosive,
+                    colors: const [
+                      AppColors.primaryColour,
+                      Colors.blue,
+                      Colors.green,
+                      AppColors.accentColour1,
+                    ],
+                  ),
                 ),
               ),
-            ),
-            if (_blockedByFreeLimit)
-              Scaffold(
-                backgroundColor: Colors.transparent,
-                body: BackdropFilter(
+              if (!widget.editingRecipe && _blockedByFreeLimit)
+                BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Positioned.fill(
-                    child: GestureDetector(
-                      onTap: () async {
-                        await RevenueCatUI.presentPaywallIfNeeded(
-                          "RecipeApp Pro",
-                        );
-                        await _checkProAndBlock();
-                        if (_blockedByFreeLimit) {
-                          Navigator.of(context).pop();
-                        }
-                      },
-                      child: Container(
-                        color: Colors.black.withAlpha(125),
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20.0,
+                  child: GestureDetector(
+                    onTap: () async {
+                      await RevenueCatUI.presentPaywallIfNeeded(
+                        "RecipeApp Pro",
+                      );
+                      await _checkProAndBlock();
+                      if (_blockedByFreeLimit) {
+                        if (!mounted) return;
+                        Navigator.of(context).pop();
+                      } else {
+                        _confettiController.play();
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Welcome to Pro, lets cook 👀',
+                              style: TextStyles.smallHeadingSecondary,
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Free plan limit reached',
-                                    style: TextStyles.pageTitle.copyWith(
-                                      color: AppColors.secondaryTextColour,
-                                    ),
+                            backgroundColor: AppColors.primaryColour,
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      color: Colors.black.withAlpha(125),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Free plan limit reached',
+                                  style: TextStyles.pageTitle.copyWith(
+                                    color: AppColors.secondaryTextColour,
                                   ),
-                                  Text(
-                                    'You have imported ${context.read<Notifier>().totalRecipesAdded} of 3 recipes. Upgrade to Pro to add unlimited recipes.',
-                                    style: TextStyles.bodyTextBoldSecondary,
-                                  ),
-                                ],
-                              ),
+                                ),
+                                Text(
+                                  'You have imported ${context.read<Notifier>().totalRecipesAdded} of 3 recipes. Upgrade to Pro to add unlimited recipes.',
+                                  style: TextStyles.bodyTextBoldSecondary,
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -1814,8 +1818,8 @@ class _AddRecipeManuallyPageState extends State<AddRecipeManuallyPage> {
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         );
       },
     );
